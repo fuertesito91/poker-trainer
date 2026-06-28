@@ -466,8 +466,10 @@ function analyzeOuts(hole, community) {
   }
   if (straightDraw) draws.push('straight draw');
 
-  // Count the unique cards that complete one of the identified draws.
+  // Count the unique cards that complete one of the identified draws, and keep
+  // the actual out cards so the UI can SHOW the learner exactly which cards help.
   let outs = 0;
+  const outCards = [];
   if (draws.length) {
     const currentRanks = new Set([...hole, ...community].map(c => c.rank));
     for (const card of remaining) {
@@ -484,13 +486,13 @@ function analyzeOuts(hole, community) {
           if (win.every(r => testRanks.has(r))) { completes = true; break; }
         }
       }
-      if (completes) outs++;
+      if (completes) { outs++; outCards.push(card); }
     }
   } else {
     // No clean draw: fall back to counting rank-improving cards (e.g. overcards
     // that could pair), but label it generically so it's not mistaken for a draw.
     for (const card of remaining) {
-      if (HandEval.evaluate([...known, card]).rank > current.rank) outs++;
+      if (HandEval.evaluate([...known, card]).rank > current.rank) { outs++; outCards.push(card); }
     }
   }
 
@@ -499,7 +501,7 @@ function analyzeOuts(hole, community) {
   const pctRiver = Math.min(100, outs * 2 * streetsToCome);
   const pctTurn = Math.min(100, outs * 2);
 
-  return { outs, draws, pctTurn, pctRiver, streetsToCome };
+  return { outs, draws, pctTurn, pctRiver, streetsToCome, outCards };
 }
 
 // ─── Combo describer (for the showdown breakdown) ────
@@ -2300,50 +2302,87 @@ function renderInfo() {
 
 // Expandable explanation of HOW the live numbers are computed and WHY they move
 // as the board develops. Turns the advisor from a black box into a teaching tool.
+// Teach the player to estimate the odds THEMSELVES — the same way a real player
+// does at the table — rather than just quoting the engine's number. The engine's
+// Monte-Carlo figure is shown only as a reality-check against the player's own
+// hand-doable estimate (count outs → rule of 2 & 4 → compare to pot odds).
 function oddsExplainerHTML(a) {
   const c = a.calc;
   if (!c) return '';
+  const outs = a.outs || {};
+  const hasDraw = outs.outs > 0 && outs.draws && outs.draws.length > 0;
+  const multiplier = c.cardsToCome >= 2 ? 4 : 2;
+  const cardsWord = c.cardsToCome >= 2 ? 'two cards (turn + river)' : 'one card';
 
-  // Equity explanation.
-  const equityLine =
-    `<b>Win % (equity)</b> = a Monte&nbsp;Carlo simulation: we deal the ${c.unknownCount} unknown cards thousands of times ` +
-    `(${c.samples.toLocaleString()} sampled hands) against the opponent's likely <b>${c.rangeLabel}</b> range ` +
-    `(~${c.rangePct}% of hands) and count how often you end up ahead. Result: ` +
-    `won ${c.winPct}% · tied ${c.tiePct}% · lost ${c.losePct}% → equity ≈ <b>${Math.round(a.equity)}%</b> ` +
-    `(ties count as half).`;
+  let steps = '';
 
-  // Pot-odds explanation.
-  let potOddsLine;
+  if (hasDraw) {
+    // Show the actual out cards so "outs" become concrete, not abstract.
+    const outChips = (outs.outCards || []).map(card =>
+      `<span class="out-card" style="color:${card.color}; border-color:${card.color}">${card.display}</span>`
+    ).join('');
+    const handEstimate = Math.min(100, outs.outs * multiplier);
+
+    steps = `
+      <ol class="odds-steps">
+        <li><b>Spot your draw.</b> You're drawing to a <b>${outs.draws.join(' + ')}</b>.</li>
+        <li><b>Count your outs</b> — the unseen cards that complete it. Here there are <b>${outs.outs}</b>:
+            <div class="out-cards">${outChips}</div></li>
+        <li><b>Rule of 2 &amp; 4</b> (the shortcut pros use in their head): multiply outs by
+            <b>${multiplier}</b> for ${cardsWord}.<br>
+            <span class="odds-math">${outs.outs} outs × ${multiplier} = <b>~${handEstimate}%</b></span>
+            chance to <b>hit your draw</b> by the river.</li>
+        <li><b>That's your draw's odds.</b> The engine's <b>~${Math.round(a.equity)}%</b> is your <em>total</em>
+            win chance — usually a bit higher, because you can also win when your draw misses (e.g. your
+            ace or king pairs). Your ~${handEstimate}% is the part you can compute by hand, and it's what
+            you compare to the price below.</li>
+      </ol>`;
+  } else {
+    // Made hand / no clean draw: explain equity in terms a human can reason about.
+    steps = `
+      <ol class="odds-steps">
+        <li><b>No drawing hand here</b>, so there are no clean "outs" to count.</li>
+        <li><b>Judge it by strength &amp; the board.</b> Your equity (<b>~${Math.round(a.equity)}%</b>) is how
+            often you'd win if all cards came — estimated by comparing your hand to the cards the opponent
+            is likely holding (their <b>${c.rangeLabel}</b> range).</li>
+        <li><b>Rule of thumb:</b> a strong made hand wants to bet for value; a weak one wants to keep the pot
+            small. The exact % only matters when you're <em>facing a bet</em> (see pot odds below).</li>
+      </ol>`;
+  }
+
+  // Pot odds — the second human-doable calculation, with the decision rule.
+  let potOddsBlock;
   if (c.call > 0) {
-    potOddsLine =
-      `<b>Pot odds</b> = the price of calling: $${c.call} to call into a $${c.potBeforeCall} pot → ` +
-      `${c.call} / (${c.potBeforeCall} + ${c.call}) = <b>${Math.round(a.potOddsPct)}%</b>. ` +
-      `Call when your win % beats this number.`;
-  } else {
-    potOddsLine = `<b>Pot odds</b> = none right now — there's no bet to call, so you can see the next card for free.`;
-  }
-
-  // Why the number moves.
-  let whyLine;
-  if (c.cardsToCome > 0) {
-    const drawNote = (a.outs && a.outs.outs > 0)
-      ? ` You currently have <b>${a.outs.outs} outs</b>; each upcoming card either completes your draw (equity jumps) or misses (it dips).`
+    const breakEvenOuts = hasDraw ? Math.ceil((a.potOddsPct / multiplier)) : null;
+    const outsRule = hasDraw
+      ? ` In outs terms: you'd need about <b>${breakEvenOuts} outs</b> to break even — you have <b>${outs.outs}</b>, so calling is ${outs.outs >= breakEvenOuts ? '<b>profitable ✅</b>' : '<b>not worth it ❌</b>'}.`
       : '';
-    whyLine = `<b>Why it changes:</b> with <b>${c.cardsToCome} card${c.cardsToCome > 1 ? 's' : ''} to come</b>, ` +
-      `there's still uncertainty. As each community card appears, unknowns drop from ${c.unknownCount} and the estimate sharpens toward 0% or 100%.${drawNote}`;
+    potOddsBlock =
+      `<p class="odds-potodds"><b>Now the price — pot odds.</b> You must call <b>$${c.call}</b> to win a
+       <b>$${c.potBeforeCall}</b> pot. Your break-even % = call ÷ (pot + call):<br>
+       <span class="odds-math">${c.call} ÷ (${c.potBeforeCall} + ${c.call}) = <b>${Math.round(a.potOddsPct)}%</b></span><br>
+       <b>The rule:</b> call when your win % beats this number (${Math.round(a.equity)}% vs ${Math.round(a.potOddsPct)}%).${outsRule}</p>`;
   } else {
-    whyLine = `<b>Why it's now fixed:</b> all 5 board cards are out, so both hands are final — the win % is no longer an estimate.`;
+    potOddsBlock = `<p class="odds-potodds"><b>No price to pay</b> — there's no bet to call, so you can see the next card for free. Drawing hands love a free card.</p>`;
   }
 
-  // Preserve the expanded/collapsed state across the advisor's frequent re-renders.
+  // Why the number moves as cards appear — the intuition.
+  let whyBlock;
+  if (c.cardsToCome > 0) {
+    whyBlock = `<p class="odds-why"><b>Why it moves:</b> with <b>${c.cardsToCome} card${c.cardsToCome > 1 ? 's' : ''} still to come</b>, the outcome isn't decided. Each board card either <b>hits your outs</b> (equity jumps up) or <b>misses</b> (it slips), and there are fewer unknowns left — so the estimate sharpens toward 0% or 100%.</p>`;
+  } else {
+    whyBlock = `<p class="odds-why"><b>It's final now:</b> all five board cards are out, so there's nothing left to draw — the win % is no longer an estimate.</p>`;
+  }
+
   const openAttr = oddsExplainerOpen ? ' open' : '';
   return `
     <details class="odds-explainer" id="odds-explainer"${openAttr}>
-      <summary>ℹ️ How are these odds calculated?</summary>
+      <summary>🎓 How to work out these odds yourself</summary>
       <div class="odds-explainer-body">
-        <p>${equityLine}</p>
-        <p>${potOddsLine}</p>
-        <p>${whyLine}</p>
+        ${steps}
+        ${potOddsBlock}
+        ${whyBlock}
+        <p class="odds-footer">Practice this and you'll read odds at a real table with no app — that's the whole point.</p>
       </div>
     </details>`;
 }

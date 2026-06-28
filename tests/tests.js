@@ -182,6 +182,13 @@
     ok(info.draws.includes('flush draw'), 'flush draw detected');
     eq(info.outs, 9, 'exactly 9 flush outs');
   });
+  test('returns the actual out CARDS for the explainer to display', () => {
+    const info = analyzeOuts(H('Ah Kh'), H('Qh 7h 2c'));
+    ok(Array.isArray(info.outCards), 'outCards is an array');
+    eq(info.outCards.length, info.outs, 'one card per out');
+    ok(info.outCards.every(c => c.suit === '♥'), 'all flush outs are hearts');
+    ok(!info.outCards.some(c => ['A♥', 'K♥', 'Q♥', '7♥'].includes(c.display)), 'no already-seen cards listed');
+  });
   test('open-ended straight draw counts exactly 8 outs', () => {
     const info = analyzeOuts(H('9h 8s'), H('7d 6c 2h'));
     ok(info.draws.includes('straight draw'), 'straight draw detected');

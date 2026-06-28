@@ -1132,10 +1132,62 @@ body.dark-theme .table {
 .odds-explainer summary::-webkit-details-marker { display: none; }
 .odds-explainer summary:hover { opacity: 1; }
 .odds-explainer-body {
-  margin-top: 6px;
-  font-size: 0.76rem;
-  line-height: 1.55;
-  opacity: 0.9;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  opacity: 0.95;
 }
-.odds-explainer-body p { margin: 0 0 6px; }
+.odds-explainer-body p { margin: 0 0 8px; }
 .odds-explainer-body b { color: var(--accent-gold); }
+
+/* Step-by-step "do it yourself" list */
+.odds-steps {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.odds-steps li { margin-bottom: 7px; }
+
+/* The arithmetic, made to stand out like a worked example */
+.odds-math {
+  display: inline-block;
+  margin: 3px 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.35);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+/* Concrete out cards the learner can see */
+.out-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+.out-card {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1.5px solid;
+  background: var(--card-bg);
+}
+
+.odds-potodds {
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(45,106,159,0.16);
+  border-left: 3px solid var(--btn-primary);
+}
+.odds-why {
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.22);
+}
+.odds-footer {
+  font-style: italic;
+  opacity: 0.75;
+  font-size: 0.74rem;
+}

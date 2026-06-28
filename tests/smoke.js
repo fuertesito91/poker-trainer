@@ -153,6 +153,21 @@ step('raise controls (typed amount + quick sizes) render and a raise applies', `
     }
   }
 `);
+step('Voice degrades to no-op without browser speech APIs', `
+  {
+    // No speechSynthesis / SpeechRecognition in Node -> all calls must be safe.
+    Voice.load();
+    if (Voice.ttsSupported) throw new Error('ttsSupported should be false in Node');
+    if (Voice.sttSupported) throw new Error('sttSupported should be false in Node');
+    Voice.speak('hello');        // no-op
+    Voice.speak('hi', true);     // forced, still no-op
+    Voice.stop();
+    Voice.listen();              // no-op
+    Voice.stopListening();
+    Voice.toggle();              // flips enabled + re-renders coach
+    Voice.toggle();
+  }
+`);
 
 console.log(`\n${failed ? failed + ' smoke failures' : 'smoke OK'}`);
 process.exit(failed ? 1 : 0);

@@ -1026,6 +1026,7 @@ body.dark-theme .table {
 
 .coach-input-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid rgba(255,255,255,0.1);
@@ -1040,6 +1041,46 @@ body.dark-theme .table {
   font-size: 0.86rem;
 }
 .coach-input:disabled { opacity: 0.5; }
+
+/* Voice toggle in the header (active = reading aloud) */
+.coach-icon-btn.active {
+  background: rgba(108,76,255,0.3);
+  opacity: 1;
+}
+
+/* Mic dictation button */
+.coach-mic {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: var(--text-light);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.coach-mic[hidden] { display: none; }
+.coach-mic:hover { background: rgba(255,255,255,0.1); }
+.coach-mic.listening {
+  background: var(--btn-danger);
+  border-color: var(--btn-danger);
+  animation: pulse 1s infinite;
+}
+
+/* Per-message read-aloud button */
+.msg-speak {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0.5;
+  margin-left: 6px;
+  padding: 0 2px;
+  vertical-align: middle;
+}
+.msg-speak:hover { opacity: 1; }
 
 /* ─── Settings ───────────────────────────────────────── */
 .settings-field { margin-bottom: 14px; }

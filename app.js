@@ -1135,6 +1135,7 @@ class PokerGame {
         if (res.source === 'llm') this.coach.text = res.text;
         this.coach.elaborating = false;
         this.coach.source = res.source;
+        if (typeof Voice !== 'undefined' && res.source === 'llm') Voice.speak(this.coach.text);
         render();
       });
     }
@@ -2077,6 +2078,105 @@ const Brain = {
   },
 };
 
+// ─── Voice: text-to-speech + speech-to-text ──────────
+// Wraps the browser's native Web Speech APIs (no dependencies). Reads the coach's
+// replies aloud and lets the player dictate questions. Everything degrades to a
+// no-op when the browser lacks support.
+const Voice = {
+  enabled: false,            // auto-speak coach replies (persisted)
+  speaking: false,
+  listening: false,
+  _recog: null,
+
+  get ttsSupported() { return typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined'; },
+  get sttSupported() { return typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition); },
+
+  load() {
+    try { this.enabled = localStorage.getItem('poker-trainer-voice') === '1'; } catch (_) {}
+  },
+  _persist() { try { localStorage.setItem('poker-trainer-voice', this.enabled ? '1' : '0'); } catch (_) {} },
+
+  toggle() {
+    this.enabled = !this.enabled;
+    this._persist();
+    if (!this.enabled) this.stop();   // silence immediately when turning off
+    renderCoach();
+  },
+
+  // Strip markdown/HTML so the spoken text sounds natural.
+  _clean(text) {
+    return String(text)
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/[*_`#>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
+
+  // Speak a piece of text. `force` ignores the auto-speak toggle (used by the
+  // per-message replay button).
+  speak(text, force = false) {
+    if (!this.ttsSupported) return;
+    if (!force && !this.enabled) return;
+    const clean = this._clean(text);
+    if (!clean) return;
+    try {
+      speechSynthesis.cancel();           // interrupt any in-flight speech
+      const u = new SpeechSynthesisUtterance(clean);
+      u.rate = 1.02; u.pitch = 1.0;
+      u.onstart = () => { this.speaking = true; };
+      u.onend = () => { this.speaking = false; };
+      u.onerror = () => { this.speaking = false; };
+      speechSynthesis.speak(u);
+    } catch (_) {}
+  },
+
+  stop() {
+    if (this.ttsSupported) { try { speechSynthesis.cancel(); } catch (_) {} }
+    this.speaking = false;
+  },
+
+  // Start dictation; resolves the recognized text into the chat input.
+  listen() {
+    if (!this.sttSupported || this.listening) return;
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new Ctor();
+    this._recog = r;
+    r.lang = 'en-US';
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    const input = document.getElementById('coach-input');
+    r.onstart = () => { this.listening = true; updateMicButton(); };
+    r.onresult = (e) => {
+      let transcript = '';
+      for (const res of e.results) transcript += res[0].transcript;
+      if (input) input.value = transcript;
+    };
+    r.onerror = () => { this.listening = false; updateMicButton(); };
+    r.onend = () => {
+      this.listening = false;
+      updateMicButton();
+      // Auto-send a dictated question if there's content.
+      const v = input?.value?.trim();
+      if (v) { input.value = ''; Coach.ask(v); }
+    };
+    try { r.start(); } catch (_) { this.listening = false; }
+  },
+
+  stopListening() {
+    if (this._recog && this.listening) { try { this._recog.stop(); } catch (_) {} }
+  },
+};
+
+// Reflect mic state on the button (called from Voice recognition callbacks).
+function updateMicButton() {
+  const btn = document.getElementById('coach-mic');
+  if (!btn) return;
+  btn.classList.toggle('listening', Voice.listening);
+  btn.textContent = Voice.listening ? '⏺' : '🎤';
+  btn.title = Voice.listening ? 'Listening… click to stop' : 'Speak to the coach';
+}
+
 // Chat panel controller.
 const Coach = {
   open: true,      // dock visible by default (desktop); persisted in localStorage
@@ -2104,6 +2204,7 @@ const Coach = {
     try {
       const reply = await Brain.chat(this.history, game);
       this.history.push({ role: 'assistant', content: reply });
+      Voice.speak(reply);   // read the reply aloud when voice is on
     } catch (e) {
       this.error = e.message;
     } finally {
@@ -2960,19 +3061,45 @@ function renderCoach() {
   const send = document.getElementById('coach-send');
   if (!msgs) return;
 
+  // Sync the voice toggle button (label + active state).
+  const voiceBtn = document.getElementById('coach-voice');
+  if (voiceBtn) {
+    if (!Voice.ttsSupported) {
+      voiceBtn.hidden = true;
+    } else {
+      voiceBtn.hidden = false;
+      voiceBtn.textContent = Voice.enabled ? '🔊' : '🔈';
+      voiceBtn.classList.toggle('active', Voice.enabled);
+      voiceBtn.title = Voice.enabled ? 'Voice on — replies read aloud' : 'Voice off';
+    }
+  }
+  // Hide the mic if speech recognition isn't available.
+  const micBtn = document.getElementById('coach-mic');
+  if (micBtn) micBtn.hidden = !Voice.sttSupported;
+
   let html = '';
   if (!Brain.isConfigured()) {
     html += `<div class="coach-msg coach-msg-system">No AI coach configured yet. Open ⚙️ Settings to add a provider (OpenAI, Anthropic, or local Ollama). Until then, the built-in tips still work during play.</div>`;
   } else if (!Coach.history.length) {
     html += `<div class="coach-msg coach-msg-system">Ask me anything about the hand on the table — e.g. <i>"what beats me here?"</i>, <i>"why is this a call?"</i>, or <i>"how should I size my bet?"</i></div>`;
   }
-  for (const m of Coach.history) {
-    html += `<div class="coach-msg coach-msg-${m.role}">${escapeHTML(m.content).replace(/\n/g, '<br>')}</div>`;
-  }
+  Coach.history.forEach((m, i) => {
+    const speakBtn = (m.role === 'assistant' && Voice.ttsSupported)
+      ? `<button class="msg-speak" data-speak="${i}" aria-label="Read this aloud" title="Read aloud">🔊</button>`
+      : '';
+    html += `<div class="coach-msg coach-msg-${m.role}">${escapeHTML(m.content).replace(/\n/g, '<br>')}${speakBtn}</div>`;
+  });
   if (Coach.busy) html += `<div class="coach-msg coach-msg-assistant coach-typing">●●●</div>`;
   if (Coach.error) html += `<div class="coach-msg coach-msg-error">⚠️ ${escapeHTML(Coach.error)}</div>`;
   msgs.innerHTML = html;
   msgs.scrollTop = msgs.scrollHeight;
+
+  // Per-message "read aloud" buttons.
+  msgs.querySelectorAll('[data-speak]').forEach(b =>
+    b.addEventListener('click', () => {
+      const m = Coach.history[parseInt(b.dataset.speak, 10)];
+      if (m) Voice.speak(m.content, true);   // force-speak regardless of toggle
+    }));
 
   if (input) input.disabled = Coach.busy;
   if (send) send.disabled = Coach.busy;
@@ -3074,6 +3201,7 @@ document.addEventListener('DOMContentLoaded', () => {
   Scenarios.load();
   BrainConfig.load();
   Coach.load();
+  Voice.load();
   EquityWorker.init();   // spin up the off-thread equity worker (no-op if unsupported)
 
   // Restore saved difficulty.
@@ -3121,6 +3249,12 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   coachSend?.addEventListener('click', submitCoach);
   coachInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitCoach(); });
+
+  // Voice: toggle read-aloud, and mic for dictation.
+  document.getElementById('coach-voice')?.addEventListener('click', () => Voice.toggle());
+  document.getElementById('coach-mic')?.addEventListener('click', () => {
+    if (Voice.listening) Voice.stopListening(); else Voice.listen();
+  });
 
   // Settings.
   document.getElementById('btn-settings')?.addEventListener('click', () => Settings.show());

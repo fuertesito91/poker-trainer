@@ -13,3 +13,8 @@ node_modules/
 
 # Dev server log
 .devserver.log
+
+# Builder/Evaluator loop artifacts (keep the code, ignore work + outputs)
+loop/.work/
+loop/runs/
+__harness_*.html

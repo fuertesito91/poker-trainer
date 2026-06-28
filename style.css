@@ -299,17 +299,62 @@ body {
   gap: 6px;
 }
 
-#raise-slider {
-  width: 120px;
-  accent-color: var(--accent-gold);
-  height: 6px;
+/* Typed raise amount with a $ prefix */
+.raise-amount-field {
+  display: flex;
+  align-items: center;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  padding: 0 8px;
+  height: 38px;
 }
-
-#raise-amount {
+.raise-amount-field:focus-within {
+  border-color: var(--accent-gold);
+}
+.raise-currency { opacity: 0.7; font-weight: 700; font-size: 0.9rem; }
+#raise-input {
+  width: 72px;
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  font-size: 0.95rem;
   font-weight: 700;
-  font-size: 0.85rem;
-  min-width: 50px;
-  text-align: center;
+  padding: 6px 4px;
+  text-align: right;
+}
+#raise-input:focus { outline: none; }
+/* Hide the native number spinners for a cleaner look */
+#raise-input::-webkit-outer-spin-button,
+#raise-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#raise-input { -moz-appearance: textfield; }
+
+/* Pot-relative quick-size shortcuts */
+.quick-sizes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 2px;
+}
+.chip-size {
+  background: rgba(214,137,16,0.18);
+  border: 1px solid var(--btn-warning);
+  color: #ffd98a;
+  border-radius: 14px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip-size:hover { background: rgba(214,137,16,0.32); }
+.chip-size:active { transform: scale(0.95); }
+.raise-range {
+  font-size: 0.68rem;
+  opacity: 0.55;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .thinking {
@@ -536,7 +581,7 @@ body {
 
   .btn { padding: 8px 12px; font-size: 0.75rem; }
 
-  #raise-slider { width: 80px; }
+  #raise-input { width: 60px; }
 
   .info-bar { font-size: 0.7rem; gap: 8px; }
 
@@ -568,7 +613,8 @@ body.dark-theme .table {
   .card-back { font-size: 1rem; }
 
   .controls-row { gap: 4px; }
-  #raise-slider { width: 70px; }
+  #raise-input { width: 52px; }
+  .chip-size { padding: 4px 9px; font-size: 0.7rem; }
 }
 /* ─── Learn button & Lessons overlay ──────────────────── */
 .btn-learn {

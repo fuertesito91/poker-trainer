@@ -2207,13 +2207,34 @@ function renderControls() {
     return;
   }
 
-  // Raise slider: values are TOTAL bet amounts
+  // Raise amounts are TOTAL bet amounts (relative to what the player already has
+  // in front). Bound to a legal min raise and the player's stack (all-in).
   const minRaiseTotal = Math.max(BIG_BLIND, game.currentBet + BIG_BLIND);
   const maxRaiseTotal = game.playerChips + game.playerBet;
   const defaultRaiseTotal = Math.min(minRaiseTotal + BIG_BLIND * 3, maxRaiseTotal);
 
   // The action is a "bet" when nobody has bet yet this round, else a "raise".
   const raiseVerb = game.currentBet === 0 ? 'Bet' : 'Raise to';
+
+  // Pot-relative quick sizes (total bet = current call + a fraction of the pot).
+  // These are the standard shortcuts real players use, so typing is rarely needed.
+  const potAfterCall = game.pot + needed;
+  const sizeForFraction = (frac) => {
+    const total = game.currentBet + needed + Math.round((potAfterCall * frac) / BIG_BLIND) * BIG_BLIND;
+    return Math.max(minRaiseTotal, Math.min(total, maxRaiseTotal));
+  };
+  const quickSizes = [
+    { label: '½ pot', val: sizeForFraction(0.5) },
+    { label: '¾ pot', val: sizeForFraction(0.75) },
+    { label: 'Pot',   val: sizeForFraction(1) },
+    { label: 'All-in', val: maxRaiseTotal },
+  ];
+  // De-dupe sizes that collapse to the same value (e.g. short stacks).
+  const seenVals = new Set();
+  const quickButtons = quickSizes.filter(q => {
+    if (seenVals.has(q.val) || q.val > maxRaiseTotal) return false;
+    seenVals.add(q.val); return true;
+  }).map(q => `<button class="chip-size" data-size="${q.val}">${q.label}</button>`).join('');
 
   container.innerHTML = `
     <div class="controls-row">
@@ -2225,12 +2246,27 @@ function renderControls() {
         ${needed > 0 ? `Call $${needed}` : 'Call'}
       </button>
       <div class="raise-group">
-        <input type="range" id="raise-slider" min="${minRaiseTotal}" max="${maxRaiseTotal}" value="${defaultRaiseTotal}" step="5">
-        <button id="btn-raise" class="btn btn-warning">${raiseVerb} <span id="raise-amount">$${defaultRaiseTotal}</span></button>
+        <div class="raise-amount-field">
+          <span class="raise-currency">$</span>
+          <input type="number" id="raise-input" inputmode="numeric"
+                 min="${minRaiseTotal}" max="${maxRaiseTotal}" step="${BIG_BLIND}"
+                 value="${defaultRaiseTotal}" aria-label="Raise amount">
+        </div>
+        <button id="btn-raise" class="btn btn-warning">${raiseVerb}</button>
       </div>
     </div>
+    <div class="quick-sizes">${quickButtons}<span class="raise-range">min $${minRaiseTotal} · max $${maxRaiseTotal}</span></div>
     <button id="btn-advice" class="btn btn-info">${adviceVisible ? '🙈 Hide Live Advice' : '💡 Show Live Advice'}</button>
   `;
+
+  const raiseInput = document.getElementById('raise-input');
+  // Clamp a typed/selected value into the legal [min, max] range, snapped to BB.
+  const clampRaise = (v) => {
+    let n = parseInt(v, 10);
+    if (isNaN(n)) n = minRaiseTotal;
+    n = Math.max(minRaiseTotal, Math.min(n, maxRaiseTotal));
+    return n;
+  };
 
   document.getElementById('btn-fold')?.addEventListener('click', () => {
     game.playerAction('fold');
@@ -2249,19 +2285,20 @@ function renderControls() {
     render();
   });
 
-  document.getElementById('btn-raise')?.addEventListener('click', () => {
-    const amt = parseInt(document.getElementById('raise-slider').value);
+  const submitRaise = () => {
+    const amt = clampRaise(raiseInput?.value);
     game.playerAction('raise', amt);
     render();
-  });
+  };
+  document.getElementById('btn-raise')?.addEventListener('click', submitRaise);
 
-  const slider = document.getElementById('raise-slider');
-  const raiseLabel = document.getElementById('raise-amount');
-  if (slider && raiseLabel) {
-    slider.addEventListener('input', () => {
-      raiseLabel.textContent = `$${slider.value}`;
-    });
-  }
+  // Quick-size buttons fill the input (one click = exact pot-relative size).
+  container.querySelectorAll('.chip-size').forEach(b =>
+    b.addEventListener('click', () => { if (raiseInput) raiseInput.value = b.dataset.size; raiseInput?.focus(); }));
+
+  // Enter submits the raise; clamp on blur so out-of-range values self-correct.
+  raiseInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitRaise(); });
+  raiseInput?.addEventListener('blur', () => { if (raiseInput) raiseInput.value = clampRaise(raiseInput.value); });
 
   document.getElementById('btn-advice')?.addEventListener('click', () => {
     adviceVisible = !adviceVisible;

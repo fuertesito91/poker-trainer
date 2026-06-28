@@ -134,6 +134,25 @@ step('bet badges render across a hand without throwing', `
     render();
   }
 `);
+step('raise controls (typed amount + quick sizes) render and a raise applies', `
+  {
+    game.startNewHand({ seed: 5, button: 0 });
+    // Drive to a state where the player can act, then render controls (which
+    // builds the number input + quick-size buttons) and perform a raise.
+    let g = 0;
+    while (g++ < 50 && !(game.waitingForAction && game.toAct === 'player')) {
+      if (game.street === 'idle' || game.street === 'gameover' || game.street === 'showdown') break;
+      if (game.waitingForAction) game.playerAction('check'); else break;
+    }
+    render();
+    if (game.waitingForAction && game.toAct === 'player') {
+      const before = game.pot;
+      game.playerAction('raise', game.currentBet + BIG_BLIND * 4);
+      render();
+      if (game.pot <= before) throw new Error('raise did not increase the pot');
+    }
+  }
+`);
 
 console.log(`\n${failed ? failed + ' smoke failures' : 'smoke OK'}`);
 process.exit(failed ? 1 : 0);

@@ -2605,7 +2605,9 @@ let oddsExplainerOpen = false;
 //   a.range {label, pct}, a.outs {outs, draws[], outCards[], pctTurn, pctRiver},
 //   a.calc {winPct, tiePct, losePct, cardsToCome, call, potBeforeCall}
 function advisorExtrasHTML(a) {
-  return ''; // EXTENSION POINT — return HTML to add a teaching visual.
+  /* EXTRAS:START */
+  return '';
+  /* EXTRAS:END */
 }
 
 function renderAdvisor() {

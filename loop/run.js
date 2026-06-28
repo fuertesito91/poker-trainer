@@ -131,10 +131,11 @@ async function main() {
         log(`builder failed: ${e.message}`); iterationLog.push({ i, error: 'builder: ' + e.message }); continue;
       }
 
-      // 3. Apply edits.
+      // 3. Apply the change (feature and/or edits) — atomically.
+      const planParts = (plan.feature ? 1 : 0) + (Array.isArray(plan.edits) ? plan.edits.length : 0);
       const { applied, failures } = builder.applyEdits(plan);
-      log(`applied ${applied}/${plan.edits.length} edits` + (failures.length ? ` (${failures.length} rejected)` : ''));
-      if (applied === 0) { restoreEditable(snap); iterationLog.push({ i, title: plan.title, kept: false, reason: 'no edits applied', failures }); continue; }
+      log(`applied ${applied}/${planParts} change part(s)` + (failures.length ? ` (rejected: ${failures.join('; ')})` : ''));
+      if (applied === 0) { restoreEditable(snap); iterationLog.push({ i, title: plan.title, kept: false, reason: 'nothing applied', failures }); continue; }
 
       // 4. GATE: tests + render.
       const green = await runTests();
@@ -173,7 +174,7 @@ async function main() {
       // 7. Keep or revert.
       if (verdict.verdict === 'keep' && verdict.delta > 0 && (!verdict.regressions || !verdict.regressions.length)) {
         history.push({ title: plan.title, rationale: plan.rationale, verdict });
-        iterationLog.push({ i, title: plan.title, kept: true, verdict, edits: plan.edits.length });
+        iterationLog.push({ i, title: plan.title, kept: true, verdict, parts: planParts });
       } else {
         restoreEditable(snap);
         iterationLog.push({ i, title: plan.title, kept: false, reason: 'evaluator: ' + verdict.verdict, verdict });

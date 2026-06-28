@@ -8,31 +8,31 @@ const path = require('path');
 const cfg = require('./config');
 const { call, textBlock, imageBlock, parseJSON } = require('./llm');
 
-const EVAL_SYSTEM = `You are an award-winning product designer AND a poker instructor, reviewing one UI change to a poker TRAINER web app. The app's purpose is to TEACH people Texas Hold'em — so a change is only valuable if it makes the app teach better and/or look genuinely more beautiful and distinctive. You are shown BEFORE and AFTER screenshots plus a description of the change.
+const EVAL_SYSTEM = `You are an exacting, award-winning product designer AND a poker instructor reviewing one UI change to a poker TRAINER web app. Judge it against an ABSOLUTE BAR: the best, most beautiful and most didactic poker-learning app you can imagine (think a premium, modern, design-led product — not a hobby project). The current app is competent but generic; we are explicitly trying to escape "bog-standard". You are shown BEFORE and AFTER screenshots plus a description of the change.
 
-WHAT YOU REWARD (in priority order):
-1. LEARNABILITY (weight 40%) — does the AFTER help a beginner understand poker faster? Clearer odds/outs explanations, better visual teaching aids (e.g. highlighting winning cards, illustrating outs, showing pot-odds maths visually), guidance that builds intuition, reduced cognitive load on the learning content. This matters most.
-2. CREATIVITY & VISUAL APPEAL (weight 35%) — is the AFTER more original, polished and delightful? Reward a distinctive, premium "real poker room" aesthetic: rich felt/table textures, refined card and chip styling, considered color and depth, elegant typography, cohesive theming. PENALIZE generic, bland, default-looking Bootstrap-ish results.
-3. CLARITY & USABILITY (weight 25%) — legibility, hierarchy, affordances, spacing, no clutter.
+WHAT YOU REWARD (priority order), scored against that world-class bar:
+1. LEARNABILITY (40%) — does the AFTER help a beginner understand poker faster? Visual teaching aids (equity meters, pot-odds gauges, outs grids, hand-strength ladders, board annotation), clearer odds/outs maths made visible, intuition-building, lower cognitive load.
+2. CREATIVITY & VISUAL APPEAL (35%) — is the AFTER genuinely distinctive, premium and delightful, with a clear art direction (cohesive palette, depth/texture, refined cards & chips, elegant typography, character)? Generic, default-looking, or timid results score LOW even if technically clean.
+3. CLARITY & USABILITY (25%) — legibility, hierarchy, contrast, no clutter.
 
-SCORING — rate the AFTER 1-10 on each:
+SCORING — rate the AFTER 1-10 on each (10 = world-class):
 - learnability, creativity, visual_appeal, clarity, usability
 
 Then output ONLY JSON:
 {
   "scores": { "learnability": n, "creativity": n, "visual_appeal": n, "clarity": n, "usability": n },
-  "overall": n,            // 1-10 weighted overall quality of the AFTER
+  "overall": n,            // 1-10 vs a WORLD-CLASS poker trainer (be stingy: a generic dark UI is ~4-5)
   "delta": n,              // -5..+5, how much better (or worse) AFTER is vs BEFORE
   "verdict": "keep" | "revert",
-  "reason": "1-2 sentences naming the learnability and/or creative impact",
+  "reason": "1-2 sentences naming the learnability and/or creative impact (or why it falls short)",
   "regressions": ["any visual breakage, lost readability, or broken layout, or empty"]
 }
 
-JUDGING RULES:
-- A change that is merely "fine" or "standard" with no real teaching or creative gain is NOT good enough — give it delta 0 and revert. We are explicitly trying to escape a bog-standard UI.
-- Strongly reward bold, tasteful creative leaps and anything that visibly improves how the game TEACHES. A striking, cohesive redesign of a component should score high even if it's a big visual change, AS LONG AS it stays legible and nothing is broken.
-- Revert anything that breaks layout, hurts readability/contrast, hides information, or adds clutter.
-- Only "keep" when delta > 0 and there are no regressions.`;
+JUDGING RULES (be demanding):
+- Hold a HIGH bar. A change that is merely "fine", safe, or incremental — a nudged size/color/spacing with no real teaching gain and no distinctive creative leap — is NOT good enough: give delta 0 and REVERT. We want ambitious, transformative changes.
+- Strongly reward bold, cohesive, tasteful redesigns and genuinely new teaching visuals. A big, striking change that stays legible and unbroken should score high — do not penalize it merely for being a large change.
+- Revert anything that breaks layout, hurts readability/contrast, hides information, looks unfinished, or adds clutter.
+- Only "keep" when the AFTER is a clear, ambitious improvement (delta >= 2 ideally; never keep delta <= 0) with no regressions.`;
 
 // `pairs` = [{ stateLabel, before, after }]. Returns the parsed verdict.
 async function evaluate({ plan, pairs }) {

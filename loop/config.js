@@ -80,5 +80,52 @@ module.exports = {
       `,
       width: 1300, height: 1100,
     },
+    {
+      id: 'learn',
+      label: 'Learn — a lesson with its concept and a drill',
+      setup: `
+        try { Lessons.completed = new Set(LESSONS.map(l=>l.id)); } catch(e){}
+        Lessons.show();
+        // Jump to a concept-rich lesson and start its drill.
+        const idx = LESSONS.findIndex(l=>l.id==='odds-change');
+        Lessons.goto(idx >= 0 ? idx : 0);
+        Lessons.startDrill();
+      `,
+      width: 1300, height: 1000,
+    },
+    {
+      id: 'coach',
+      label: 'AI Coach chat panel mid-conversation',
+      setup: `
+        Coach.open = true;
+        Coach.history = [
+          { role:'user', content:'Why is calling correct here?' },
+          { role:'assistant', content:'You have a flush draw with 9 outs — about 36% to hit by the river, and you can also win when an ace or king pairs. The pot lays you 4-to-1 (you only need 20%), so calling is clearly profitable. Compare your win % to the pot-odds % and call whenever it is higher.' },
+          { role:'user', content:'How many outs is a straight draw?' },
+          { role:'assistant', content:'An open-ended straight draw has 8 outs (two ranks, four of each). A gutshot has 4. Multiply by 4 on the flop to estimate your chance by the river.' }
+        ];
+        render(); renderCoach();
+      `,
+      width: 1300, height: 900,
+    },
+    {
+      id: 'controls-stats',
+      label: 'Betting controls + analysis/leaks + stats during a hand',
+      setup: `
+        game.reset();
+        Stats.data.hands = 24; Stats.data.won = 13; Stats.data.decisions = 40; Stats.data.goodDecisions = 31;
+        try { Stats.data.byStreet.flop = {decisions:12, good:7}; Stats.data.byStreet.turn = {decisions:9, good:5}; Stats.data.byStreet.river = {decisions:8, good:4}; Stats.data.byStreet.preflop = {decisions:11, good:9}; } catch(e){}
+        try { Stats.data.leaks['call-wide']=5; Stats.data.leaks['fold-equity']=3; Stats.data.leaks['miss-value']=2; } catch(e){}
+        game.playerHole=[Card.fromString('Js'),Card.fromString('Jd')];
+        game.aiHole=[Card.fromString('5c'),Card.fromString('6d')];
+        game.community=[Card.fromString('Jh'),Card.fromString('9d'),Card.fromString('4h')];
+        game.street='flop'; game.pot=140; game.currentBet=40; game.playerBet=0; game.aiBet=40;
+        game.waitingForAction=true; game.toAct='player'; adviceVisible=true;
+        render();
+        // Open the analysis panel so leaks/per-street stats are visible.
+        document.querySelector('.analysis-wrap')?.setAttribute('open','');
+      `,
+      width: 1300, height: 1150,
+    },
   ],
 };

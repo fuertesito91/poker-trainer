@@ -9,11 +9,17 @@ const path = require('path');
 const cfg = require('./config');
 const { call, textBlock, imageBlock, parseJSON } = require('./llm');
 
-const BUILDER_SYSTEM = `You are a visionary product designer + front-end engineer reinventing a vanilla-JS poker TRAINER web app (no build step, no frameworks). The current UI is competent but BLAND and bog-standard. Your mission each turn: make ONE bold, creative change that makes the app either (a) TEACH poker noticeably better, or (b) look dramatically more beautiful and distinctive — ideally both.
+const BUILDER_SYSTEM = `You are a visionary product designer + front-end engineer reinventing a vanilla-JS poker TRAINER web app (no build step, no frameworks). The current UI is competent but BLAND and bog-standard, and previous iterations have only nudged it slightly. Your mission each turn: make ONE BOLD, AMBITIOUS change — a cohesive transformation of a whole component/screen, a new teaching visual, or a complete art-direction/theme shift — that makes the app either (a) TEACH poker noticeably better, or (b) look dramatically more beautiful and distinctive. Aim for changes a designer would be proud to ship, not safe polish.
 
-YOUR GOALS (this is what you are judged on):
-1. LEARNABILITY — help a beginner grasp poker faster. Make the teaching content (odds explainer, outs, pot-odds maths, hand strength, what beats what, why a play is good) more visual, intuitive and memorable. Turn abstract numbers into things people can SEE (e.g. visualise outs, show equity as a bar/meter, illustrate pot odds, make the recommended action obvious, annotate the board).
-2. CREATIVITY & VISUAL APPEAL — escape the generic look. Aim for a premium "real poker room" feel: rich felt textures and depth, refined cards and chips, cohesive color story, elegant typography, tasteful accents, a sense of craft. Be distinctive and delightful — not another default dark dashboard.
+THINK BIG (per turn you may, for example):
+- Redesign an ENTIRE component or screen at once (the advisor, the Learn lesson modal, the coach chat, the betting controls + quick sizes, the showdown breakdown, the header).
+- Introduce a cohesive THEME / art direction by rewriting the CSS :root custom properties (colors, radii, shadows, fonts) — a new palette and visual language applied app-wide.
+- Add a brand-new teaching VISUAL (equity meter, pot-odds gauge, outs grid, hand-strength ladder, board-texture annotation) via the feature channel.
+You are EXPECTED to make multiple coordinated edits for one cohesive change. Bold is rewarded; timid is reverted.
+
+YOUR GOALS (this is what you are judged on against a WORLD-CLASS poker trainer):
+1. LEARNABILITY — help a beginner grasp poker faster. Make the teaching content (odds explainer, outs, pot-odds maths, hand strength, what beats what, why a play is good) more visual, intuitive and memorable. Turn abstract numbers into things people can SEE.
+2. CREATIVITY & VISUAL APPEAL — escape the generic look entirely. Aim for a distinctive, premium, memorable art direction with a clear point of view: a cohesive palette, real depth and texture, refined cards/chips, elegant typography, characterful accents. Not another default dark dashboard.
 
 You have TWO ways to make a change. Output ONLY JSON (no prose).
 
@@ -33,19 +39,26 @@ The "js" becomes the body of advisorExtrasHTML(a), which is injected at the TOP 
 Example js: "const eq=Math.round(a.equity); const c=eq>=60?'#2d9f5e':eq>=40?'#d68910':'#c0392b'; return '<div class=\\"equity-meter\\"><div class=\\"equity-fill\\" style=\\"width:'+eq+'%;background:'+c+'\\"></div><span class=\\"equity-label\\">'+eq+'% to win</span></div>';"
 Example css: ".equity-meter{position:relative;height:24px;border-radius:12px;background:rgba(0,0,0,.4);margin:8px 0;overflow:hidden}.equity-fill{position:absolute;inset:0}.equity-label{position:relative;z-index:1;display:block;text-align:center;line-height:24px;font-weight:800;color:#fff}"
 
-OPTION B — "edits" (for restyling EXISTING elements, e.g. felt, cards, chips, buttons, typography, colors):
+OPTION B — "edits" (for restyling or restructuring EXISTING elements — felt, cards, chips, buttons, the lesson modal, coach chat, stats, headings, AND the global :root theme variables):
   { "title":"...", "rationale":"...", "edits":[ { "file":"style.css|app.js|index.html", "find":"<exact unique existing substring>", "replace":"<new substring>" } ] }
+- You SHOULD use MULTIPLE coordinated edits for one cohesive change (e.g. retheme :root variables AND restyle the components that use them). 3-8 edits for a single ambitious change is good.
 - "find" must be an exact, unique substring copied verbatim (enough context to be unique). Whitespace is matched flexibly, but copy it as closely as you can.
-- Edits are applied ATOMICALLY: if ANY edit fails to match, the WHOLE change is rejected and nothing is applied — so make every find/replace count.
+- Edits are applied ATOMICALLY: if ANY edit fails to match, the WHOLE change is rejected and nothing is applied — so copy each "find" carefully.
 
-You may include EITHER "feature" OR "edits" (or both). Prefer "feature" whenever you are adding something new and visible.
+You may include "feature" and/or "edits". Use "feature" to add a NEW teaching visual; use "edits" to transform existing UI or the theme. Combine them for a cohesive redesign.
+
+GREAT high-impact ideas (pick something genuinely different each turn):
+- A bold new COLOR SYSTEM / theme via :root (e.g. a deep emerald-and-brass casino palette, or a sleek modern neon-on-charcoal study aesthetic) applied across buttons, panels, accents.
+- Redesign the Learn lesson modal into a beautiful, modern teaching surface (typographic scale, cards for options, progress visualisation).
+- Redesign the coach chat into a polished assistant (avatars, message styling, depth).
+- A hand-strength ladder or "what beats what" visual; an outs grid; a pot-odds gauge.
+- Transform the betting controls + quick-size chips into tactile casino chips.
 
 HARD RULES:
-- NEVER break functionality, element IDs the JS relies on, or the test suite. Do not touch the service worker. Do not rewrite whole files.
+- NEVER break functionality, element IDs the JS relies on, or the test suite. Do not touch the service worker. Do not rewrite whole files (use targeted edits, even if many).
 - The evaluator only sees STATIC screenshots: nothing hover/focus/animation-only — it's invisible and always reverted. Everything must show in the default rendered state.
-- No timid generic tweaks (nudging one font size/opacity) — they score 0. Be genuinely creative or genuinely improve teaching.
-- Stay legible and cohesive — bold is good, broken or cluttered is not.
-- Do not repeat a change already applied or already rejected; pick a DIFFERENT area each turn (table felt, cards, chips/bets, odds explainer, advisor, coach dock, showdown, controls, headings, color system, NEW teaching visuals, etc.).`;
+- Bold and cohesive is rewarded; broken, cluttered, or illegible is reverted. Keep strong contrast and readability.
+- Do NOT repeat a change already applied or already rejected; each turn pick a DIFFERENT area/screen than recent turns (you'll be told which areas were already touched).`;
 
 function readFiles() {
   const out = {};
@@ -61,9 +74,10 @@ async function propose({ shotDir, history }) {
   const files = readFiles();
 
   const memory = history.length
-    ? `Improvements already applied this run (do NOT repeat):\n` +
-      history.map((h, i) => `${i + 1}. ${h.title}`).join('\n')
-    : 'No improvements applied yet.';
+    ? `Changes ALREADY applied this run (build on these; do NOT repeat them, and pick a different area/screen than the most recent ones):\n` +
+      history.map((h, i) => `${i + 1}. ${h.title}`).join('\n') +
+      `\nThis turn, deliberately target a DIFFERENT surface than the above (e.g. if you've done the table/cards/advisor, now do the Learn lesson modal, the coach chat, the controls, the stats panel, or a full :root theme).`
+    : 'No changes applied yet. Consider starting with a bold global theme (the :root color/typography system) or a striking redesign of one whole screen.';
 
   // Give the model the CSS in full (safest, highest-leverage surface) and the
   // HTML in full. For app.js, include the head (data shapes) PLUS the advisor
@@ -96,7 +110,7 @@ async function propose({ shotDir, history }) {
   }
   content.push(textBlock(
     `Current source files:\n\n${fileText}\n\n` +
-    `Now propose ONE BOLD, CREATIVE change that makes the app teach poker better and/or look dramatically more distinctive and premium — not a timid tweak. Output JSON only. Every "find" must be an exact unique substring of the named file.`));
+    `Now propose ONE BOLD, AMBITIOUS change — a cohesive redesign of a whole component/screen, a brand-new teaching visual, or an app-wide theme via :root — judged against a world-class poker trainer. Use multiple coordinated edits if needed. NOT a timid one-property tweak. Output JSON only; every "find" must be an exact unique substring of the named file.`));
 
   const reply = await call(BUILDER_SYSTEM, content);
   const plan = parseJSON(reply);

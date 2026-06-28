@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1b6b3a">
+  <meta name="description" content="Offline Texas Hold'em Poker Trainer — Learn hand reading, pot odds, and betting strategy.">
+  <title>Poker Trainer</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <div class="header">
+      <h1>♠️ <span>Poker</span> Trainer</h1>
+      <div class="header-controls">
+        <label class="difficulty-label">
+          AI:
+          <select id="difficulty" aria-label="AI difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
+        <button id="theme-toggle" aria-label="Toggle theme">🌓</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table">
+      <!-- AI Zone -->
+      <div class="player-zone">
+        <span class="player-label">🤖 AI</span>
+        <div class="cards-row" id="ai-cards">
+          <span class="empty-cards">—</span>
+        </div>
+        <span class="player-chips" id="ai-chips">$1000</span>
+      </div>
+
+      <!-- Community Cards -->
+      <div class="community-zone">
+        <div id="community-cards">
+          <div class="card card-placeholder"><span>?</span></div>
+          <div class="card card-placeholder"><span>?</span></div>
+          <div class="card card-placeholder"><span>?</span></div>
+          <div class="card card-placeholder"><span>?</span></div>
+          <div class="card card-placeholder"><span>?</span></div>
+        </div>
+        <div class="pot-display" id="pot-display">Pot: $0</div>
+        <div class="dealer-indicator" id="dealer-indicator">—</div>
+      </div>
+
+      <!-- Player Zone -->
+      <div class="player-zone">
+        <span class="player-label">🧑 You</span>
+        <div class="cards-row" id="player-cards">
+          <span class="empty-cards">—</span>
+        </div>
+        <span class="player-chips" id="player-chips">$1000</span>
+      </div>
+
+      <!-- Controls -->
+      <div id="controls">
+        <button id="btn-new-hand" class="btn btn-primary">New Hand</button>
+        <button id="btn-reset" class="btn btn-secondary">Reset</button>
+      </div>
+
+      <!-- Info Bar -->
+      <div class="info-bar">
+        <div class="info-item">
+          <span class="info-label">Hand:</span>
+          <span class="info-value" id="handname-display">—</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Equity:</span>
+          <span class="info-value" id="equity-display">—</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Pot Odds:</span>
+          <span class="info-value" id="potodds-display">—</span>
+        </div>
+      </div>
+
+      <!-- Hint Area -->
+      <div id="hint-area"></div>
+
+      <!-- Live Advisor / Coaching -->
+      <div id="advisor-area"></div>
+
+      <!-- Status -->
+      <div id="status-area">Welcome! Click "New Hand" to start.</div>
+
+      <!-- Showdown -->
+      <div id="showdown-area"></div>
+
+      <!-- Session Stats -->
+      <div class="stats-wrap">
+        <div id="stats-area" class="stats-bar"></div>
+        <button id="btn-reset-stats" class="stats-reset" aria-label="Reset stats">Reset stats</button>
+      </div>
+
+      <!-- Hand History -->
+      <details class="history-wrap">
+        <summary class="history-toggle">📜 Hand History</summary>
+        <div id="history-area" class="history-list"></div>
+      </details>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Register service worker for offline play
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(() => console.log('Poker Trainer ready for offline play'))
+          .catch(() => console.log('Service worker registration skipped'));
+      });
+    }
+  </script>
+</body>
+</html>

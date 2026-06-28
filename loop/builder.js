@@ -9,23 +9,28 @@ const path = require('path');
 const cfg = require('./config');
 const { call, textBlock, imageBlock, parseJSON } = require('./llm');
 
-const BUILDER_SYSTEM = `You are a senior front-end engineer improving a vanilla-JS poker TRAINER web app (no build step, no frameworks). You make ONE small, safe, high-impact UX/UI improvement per turn.
+const BUILDER_SYSTEM = `You are a visionary product designer + front-end engineer reinventing a vanilla-JS poker TRAINER web app (no build step, no frameworks). The current UI is competent but BLAND and bog-standard. Your mission each turn: make ONE bold, creative change that makes the app either (a) TEACH poker noticeably better, or (b) look dramatically more beautiful and distinctive — ideally both.
+
+YOUR GOALS (this is what you are judged on):
+1. LEARNABILITY — help a beginner grasp poker faster. Make the teaching content (odds explainer, outs, pot-odds maths, hand strength, what beats what, why a play is good) more visual, intuitive and memorable. Turn abstract numbers into things people can SEE (e.g. visualise outs, show equity as a bar/meter, illustrate pot odds, make the recommended action obvious, annotate the board).
+2. CREATIVITY & VISUAL APPEAL — escape the generic look. Aim for a premium "real poker room" feel: rich felt textures and depth, refined cards and chips, cohesive color story, elegant typography, tasteful accents, a sense of craft. Be distinctive and delightful — not another default dark dashboard.
 
 HARD RULES:
 - Output ONLY JSON (no prose) in this schema:
   {
-    "title": "short name of the improvement",
-    "rationale": "why this helps UX/UI (1-2 sentences)",
+    "title": "short name of the change",
+    "rationale": "the learnability and/or creative impact (1-2 sentences)",
     "edits": [
       { "file": "style.css|app.js|index.html", "find": "<exact existing substring>", "replace": "<new substring>" }
     ]
   }
-- "find" MUST be an EXACT, UNIQUE substring copied verbatim from the given file (include enough surrounding context to be unique). If it is not unique or not present, the edit is rejected.
-- Keep edits SMALL and focused on ONE improvement. Prefer CSS and small markup/logic tweaks.
-- NEVER break existing functionality, IDs, or the test suite. Do not remove element IDs the JS relies on. Do not touch the service worker.
-- Favor: visual hierarchy, spacing, contrast/legibility, affordances, clarity of the learning content, responsive polish. Avoid risky rewrites.
-- IMPORTANT: the evaluator only sees STATIC screenshots. Do NOT propose changes whose only effect is a hover/focus/active state, a transition, or an animation — they are invisible in a screenshot and will always be reverted. Make changes that are visible in the default rendered state (colors, sizing, spacing, layout, borders, typography, contrast, content).
-- Do not re-introduce a change that a previous iteration already made or that was already rejected; build on the current state and try a DIFFERENT area each time.`;
+- "find" MUST be an EXACT, UNIQUE substring copied verbatim from the given file (include enough surrounding context to be unique). If not unique or not present, the edit is rejected.
+- You MAY make ambitious changes, but they must be delivered as a SMALL number of precise find/replace edits to ONE area/component. Pure CSS is the safest high-leverage surface; small markup/logic tweaks are fine. Do NOT rewrite whole files.
+- NEVER break functionality, element IDs the JS relies on, or the test suite. Do not touch the service worker.
+- The evaluator only sees STATIC screenshots: do NOT propose changes whose only effect is a hover/focus/active state, transition or animation — they are invisible and always reverted. Everything you do must be visible in the default rendered state.
+- Do NOT make timid, generic tweaks (e.g. nudging one font size or opacity). Those score 0 and get reverted. Be genuinely creative or genuinely improve the teaching.
+- Stay legible and cohesive — bold is good, broken or cluttered is not.
+- Do not repeat a change already applied or already rejected; pick a DIFFERENT area each turn (table felt, cards, chips/bets, the odds explainer, advisor, coach dock, showdown, controls, headings, color system, etc.).`;
 
 function readFiles() {
   const out = {};
@@ -65,7 +70,7 @@ async function propose({ shotDir, history }) {
   }
   content.push(textBlock(
     `Current source files:\n\n${fileText}\n\n` +
-    `Propose ONE improvement now as JSON. Remember: every "find" must be an exact unique substring of the named file.`));
+    `Now propose ONE BOLD, CREATIVE change that makes the app teach poker better and/or look dramatically more distinctive and premium — not a timid tweak. Output JSON only. Every "find" must be an exact unique substring of the named file.`));
 
   const reply = await call(BUILDER_SYSTEM, content);
   const plan = parseJSON(reply);

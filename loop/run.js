@@ -45,15 +45,54 @@ function cpDir(src, dest) {
   }
 }
 
-// Snapshot/restore just the editable files (cheap revert).
+// (Re)build the working copy from the app root and symlink node_modules.
+function buildWorkDir() {
+  rmrf(cfg.workDir);
+  cpDir(cfg.ROOT, cfg.workDir);
+  try { fs.symlinkSync(path.join(cfg.ROOT, 'node_modules'), path.join(cfg.workDir, 'node_modules'), 'dir'); }
+  catch (_) { /* tests fall back to ROOT bin */ }
+}
+
+// True only if the work copy and every editable file are present.
+function workDirIntact() {
+  if (!fs.existsSync(cfg.workDir)) return false;
+  return cfg.EDITABLE.every(f => fs.existsSync(path.join(cfg.workDir, f)));
+}
+
+// Snapshot/restore just the editable files (cheap revert). Tolerant of a missing
+// file (returns null/skip) so a damaged work copy never crashes the whole run.
 function snapshotEditable() {
   const snap = {};
-  for (const f of cfg.EDITABLE) snap[f] = fs.readFileSync(path.join(cfg.workDir, f), 'utf8');
+  for (const f of cfg.EDITABLE) {
+    const p = path.join(cfg.workDir, f);
+    snap[f] = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+  }
   return snap;
 }
 function restoreEditable(snap) {
-  for (const f of cfg.EDITABLE) fs.writeFileSync(path.join(cfg.workDir, f), snap[f]);
+  for (const f of cfg.EDITABLE) {
+    if (snap[f] != null) fs.writeFileSync(path.join(cfg.workDir, f), snap[f]);
+  }
 }
+
+// Single-instance lock: refuse to start (and thus never rmrf the work dir) if
+// another loop run is already in progress — this was the cause of a mid-run
+// "style.css disappeared" crash when two runs overlapped.
+const LOCK = path.join(__dirname, '.work.lock');
+function acquireLock() {
+  if (fs.existsSync(LOCK)) {
+    const pid = (() => { try { return parseInt(fs.readFileSync(LOCK, 'utf8'), 10); } catch { return null; } })();
+    const alive = pid && (() => { try { process.kill(pid, 0); return true; } catch { return false; } })();
+    if (alive) {
+      console.error(`[loop] another run is already active (pid ${pid}). Aborting to avoid corrupting its work dir.`);
+      console.error(`[loop] if you're sure none is running, delete ${LOCK} and retry.`);
+      process.exit(1);
+    }
+    // Stale lock from a crashed run — safe to take over.
+  }
+  fs.writeFileSync(LOCK, String(process.pid));
+}
+function releaseLock() { try { fs.unlinkSync(LOCK); } catch (_) {} }
 
 // Static server over the working copy.
 function startServer() {
@@ -80,12 +119,11 @@ async function main() {
     process.exit(1);
   }
 
+  // Prevent overlapping runs (a second run's rmrf would wipe this one's work dir).
+  acquireLock();
+
   // Fresh working copy of the app.
-  rmrf(cfg.workDir);
-  cpDir(cfg.ROOT, cfg.workDir);
-  // The working copy needs node_modules for `npm test` + live-server; symlink it.
-  try { fs.symlinkSync(path.join(cfg.ROOT, 'node_modules'), path.join(cfg.workDir, 'node_modules'), 'dir'); }
-  catch (_) { /* fall back: tests run from ROOT bin via absolute path below */ }
+  buildWorkDir();
 
   const runDir = path.join(cfg.outDir, ts());
   fs.mkdirSync(runDir, { recursive: true });
@@ -106,6 +144,16 @@ async function main() {
       log(`──── iteration ${i} ────`);
       const iterDir = path.join(runDir, `iter-${String(i).padStart(2, '0')}`);
       fs.mkdirSync(iterDir, { recursive: true });
+
+      // 0. Self-heal: if the work copy got damaged/removed (e.g. an external
+      // process touched it), rebuild it from the LAST KEPT state before doing
+      // anything else, so a missing file can never crash the run.
+      if (!workDirIntact()) {
+        log('work copy missing/incomplete — rebuilding from app root');
+        buildWorkDir();
+        // Re-apply improvements kept so far so we don't lose progress.
+        for (const h of history) { if (h.snapshot) restoreEditable(h.snapshot); }
+      }
 
       // 1. BEFORE screenshots.
       const before = await shot.captureAll(cfg.workDir, serverUrl, iterDir, 'before_');
@@ -183,7 +231,8 @@ async function main() {
 
       // 7. Keep or revert.
       if (verdict.verdict === 'keep' && verdict.delta > 0 && (!verdict.regressions || !verdict.regressions.length)) {
-        history.push({ title: plan.title, rationale: plan.rationale, verdict });
+        // Record the post-keep state so the run can self-heal without losing it.
+        history.push({ title: plan.title, rationale: plan.rationale, verdict, snapshot: snapshotEditable() });
         iterationLog.push({ i, title: plan.title, kept: true, verdict, parts: planParts });
       } else {
         restoreEditable(snap);
@@ -192,6 +241,7 @@ async function main() {
     }
   } finally {
     try { server.kill(); } catch (_) {}
+    releaseLock();
   }
 
   // Write the report + a visual gallery (before/after for every attempt).
@@ -240,7 +290,9 @@ function writeReport(runDir, history, iterationLog) {
   });
   md += `\n## Screenshots\n\nEach iteration folder contains before_*.png / after_*.png for the captured states.\n`;
   fs.writeFileSync(path.join(runDir, 'report.md'), md);
-  fs.writeFileSync(path.join(runDir, 'log.json'), JSON.stringify({ history, iterationLog }, null, 2));
+  // Drop the large file-snapshot blobs from the persisted log.
+  const slimHistory = history.map(({ snapshot, ...rest }) => rest);
+  fs.writeFileSync(path.join(runDir, 'log.json'), JSON.stringify({ history: slimHistory, iterationLog }, null, 2));
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

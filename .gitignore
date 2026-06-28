@@ -16,5 +16,6 @@ node_modules/
 
 # Builder/Evaluator loop artifacts (keep the code, ignore work + outputs)
 loop/.work/
+loop/.work.lock
 loop/runs/
 __harness_*.html

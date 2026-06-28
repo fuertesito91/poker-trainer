@@ -23,8 +23,9 @@ HARD RULES:
 - "find" MUST be an EXACT, UNIQUE substring copied verbatim from the given file (include enough surrounding context to be unique). If it is not unique or not present, the edit is rejected.
 - Keep edits SMALL and focused on ONE improvement. Prefer CSS and small markup/logic tweaks.
 - NEVER break existing functionality, IDs, or the test suite. Do not remove element IDs the JS relies on. Do not touch the service worker.
-- Favor: visual hierarchy, spacing, contrast/legibility, affordances, clarity of the learning content, responsive polish, micro-interactions. Avoid risky rewrites.
-- Do not re-introduce a change that a previous iteration already made; build on the current state.`;
+- Favor: visual hierarchy, spacing, contrast/legibility, affordances, clarity of the learning content, responsive polish. Avoid risky rewrites.
+- IMPORTANT: the evaluator only sees STATIC screenshots. Do NOT propose changes whose only effect is a hover/focus/active state, a transition, or an animation — they are invisible in a screenshot and will always be reverted. Make changes that are visible in the default rendered state (colors, sizing, spacing, layout, borders, typography, contrast, content).
+- Do not re-introduce a change that a previous iteration already made or that was already rejected; build on the current state and try a DIFFERENT area each time.`;
 
 function readFiles() {
   const out = {};

@@ -25,7 +25,7 @@
    ===================================================== */
 const fs = require('fs');
 const path = require('path');
-const { execFile, execSync, spawn } = require('child_process');
+const { execFile, execFileSync, execSync, spawn } = require('child_process');
 const cfg = require('./config');
 const shot = require('./screenshot');
 
@@ -255,14 +255,27 @@ async function main() {
     for (const f of cfg.EDITABLE) {
       fs.copyFileSync(path.join(cfg.workDir, f), path.join(cfg.ROOT, f));
     }
+    // Use arg-array exec (no shell quoting) and a temp file for the multi-line
+    // commit message, and ALWAYS branch off main so runs don't stack on each
+    // other's branches. Falls back to whatever HEAD is if main isn't present.
+    const git = (args) => execFileSync('git', args, { cwd: cfg.ROOT, stdio: ['ignore', 'pipe', 'pipe'] }).toString();
     const branch = `${cfg.branchPrefix}-${ts()}`;
+    const msgFile = path.join(runDir, 'commit-msg.txt');
+    fs.writeFileSync(msgFile,
+      `loop: ${history.length} kept UX/UI improvement(s)\n\n` +
+      history.map(h => '- ' + h.title).join('\n') + '\n');
     try {
-      execSync(`git checkout -b ${branch}`, { cwd: cfg.ROOT, stdio: 'inherit' });
-      execSync(`git add ${cfg.EDITABLE.join(' ')}`, { cwd: cfg.ROOT, stdio: 'inherit' });
-      execSync(`git commit -m "loop: ${history.length} kept UX/UI improvement(s)\n\n${history.map(h => '- ' + h.title).join('\n')}"`, { cwd: cfg.ROOT, stdio: 'inherit' });
-      log(`kept ${history.length} change(s) committed to branch ${branch} (not pushed). Report: ${runDir}/report.md`);
+      // Base the new branch on main when possible (otherwise current HEAD).
+      let base = 'HEAD';
+      try { git(['rev-parse', '--verify', 'main']); base = 'main'; } catch (_) {}
+      git(['checkout', '-b', branch, base]);
+      git(['add', ...cfg.EDITABLE]);
+      git(['-c', 'user.name=poker-loop', '-c', 'user.email=loop@local', 'commit', '-F', msgFile]);
+      log(`kept ${history.length} change(s) committed to branch ${branch} (not pushed).`);
+      log(`review: git diff main..${branch}   |   report: ${runDir}/report.md`);
     } catch (e) {
-      log(`git branch/commit step skipped: ${e.message}. Changes are in your working tree.`);
+      const detail = (e.stderr ? e.stderr.toString() : e.message).trim().split('\n').slice(-3).join(' ');
+      log(`git step failed (${detail}). Kept files were written to your working tree — commit them manually if you want them.`);
     }
   } else if (!DRY) {
     log('No improvements were kept this run.');

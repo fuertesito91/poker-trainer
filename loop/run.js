@@ -183,8 +183,11 @@ async function main() {
     try { server.kill(); } catch (_) {}
   }
 
-  // Write the report.
+  // Write the report + a visual gallery (before/after for every attempt).
   writeReport(runDir, history, iterationLog);
+  try {
+    execSync(`node ${path.join(__dirname, 'gallery.js')} "${runDir}"`, { stdio: 'inherit' });
+  } catch (_) { /* gallery is best-effort */ }
 
   // Persist kept changes back to the app on a fresh branch (no push).
   if (!DRY && history.length) {

@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "live-server --port=8000 --no-browser --ignore=tests/**,*.md",
     "start": "live-server --port=8000 --no-browser --ignore=tests/**,*.md",
-    "test": "node tests/run.js && node tests/brain.js && node tests/smoke.js"
+    "test": "node tests/run.js && node tests/brain.js && node tests/smoke.js",
+    "loop": "node loop/run.js",
+    "loop:gallery": "node loop/gallery.js"
   },
   "devDependencies": {
     "live-server": "^1.2.2"

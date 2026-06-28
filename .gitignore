@@ -10,3 +10,6 @@
 
 # Node
 node_modules/
+
+# Dev server log
+.devserver.log

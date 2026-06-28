@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "description": "Offline Texas Hold'em poker trainer with a built-in learning curriculum.",
   "scripts": {
+    "dev": "live-server --port=8000 --no-browser --ignore=tests/**,*.md",
+    "start": "live-server --port=8000 --no-browser --ignore=tests/**,*.md",
     "test": "node tests/run.js && node tests/brain.js && node tests/smoke.js"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
   },
   "license": "MIT"
 }

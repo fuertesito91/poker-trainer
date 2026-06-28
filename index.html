@@ -164,14 +164,29 @@
 
   <script src="app.js"></script>
   <script>
-    // Register service worker for offline play
-    if ('serviceWorker' in navigator) {
+    // In local development the service worker would cache assets and hide fresh
+    // code on refresh, so we DISABLE it on localhost (and tear down any SW/caches
+    // a previous session installed). In production it registers as normal for
+    // offline play.
+    (function () {
+      const isLocalDev = ['localhost', '127.0.0.1', '0.0.0.0', ''].includes(location.hostname);
+      if (!('serviceWorker' in navigator)) return;
+
+      if (isLocalDev) {
+        // Remove any previously-installed worker and its caches so the dev server
+        // always serves the latest files.
+        navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+        if (window.caches) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+        console.log('Dev mode: service worker disabled, caches cleared.');
+        return;
+      }
+
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
           .then(() => console.log('Poker Trainer ready for offline play'))
           .catch(() => console.log('Service worker registration skipped'));
       });
-    }
+    })();
   </script>
 </body>
 </html>

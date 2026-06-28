@@ -435,6 +435,7 @@ body {
 .advice-green  { border-left-color: var(--btn-success); }
 .advice-yellow { border-left-color: var(--btn-warning); }
 .advice-red    { border-left-color: var(--btn-danger); }
+.advice-study  { border-left-color: var(--btn-info); opacity: 0.95; }
 
 .coach {
   padding: 8px 12px;
@@ -1192,6 +1193,33 @@ body.dark-theme .table {
   padding-left: 18px;
 }
 .odds-steps li { margin-bottom: 7px; }
+
+/* Per-street odds progression table (same outs, different cards-to-come) */
+.odds-progression {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 0.74rem;
+}
+.odds-progression td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.odds-progression tr.now {
+  background: rgba(214,137,16,0.16);
+}
+.odds-progression tr.now td:first-child::after {
+  content: ' ← you are here';
+  opacity: 0.7;
+  font-style: italic;
+  font-size: 0.68rem;
+}
+.odds-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.74rem;
+  opacity: 0.85;
+}
 
 /* The arithmetic, made to stand out like a worked example */
 .odds-math {

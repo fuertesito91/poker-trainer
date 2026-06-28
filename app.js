@@ -1523,6 +1523,37 @@ Example: a flush draw = 9 outs. On the flop ≈ 9×4 = <b>36%</b> to hit by the 
     },
   },
   {
+    id: 'odds-change',
+    title: 'How Odds Change',
+    concept: `Your draw's odds aren't fixed — they depend on <b>how many cards you've yet to see</b>.
+The Rule of 2 &amp; 4 makes this clear: you multiply your outs by the <b>rounds of cards still to come</b>.
+<ul class="lesson-list">
+  <li>On the <b>flop</b> there are <b>two</b> cards to come → multiply by <b>4</b>.</li>
+  <li>On the <b>turn</b> there's only <b>one</b> card left → multiply by <b>2</b>.</li>
+</ul>
+So a 9-out flush draw is ~<b>36%</b> on the flop (9×4) but only ~<b>18%</b> on the turn (9×2) if it missed.
+<br><br><b>Key idea:</b> each round that passes without hitting roughly <b>halves</b> your remaining chance —
+which is why a missed draw on the turn is much weaker than on the flop, and why you often want to see
+the next card cheaply.`,
+    drill: () => {
+      const outs = [4, 6, 8, 9, 12, 13][Math.floor(Math.random() * 6)];
+      const flopPct = Math.min(100, outs * 4);
+      const turnPct = Math.min(100, outs * 2);
+      // Ask how the SAME draw's odds change from flop to turn.
+      const opts = Array.from(new Set([
+        `${turnPct}%`, `${flopPct}%`, `${Math.min(100, outs)}%`, `${Math.min(100, outs * 3)}%`,
+      ])).slice(0, 4);
+      return {
+        prompt: `You have a <b>${outs}-out</b> draw. On the flop it was ~<b>${flopPct}%</b> to hit by the river.
+          It missed the turn. About what % to hit on the <b>river</b> now (one card left)?`,
+        options: opts,
+        correct: `${turnPct}%`,
+        explain: `One card to come → ×2. <b>${outs} × 2 = ~${turnPct}%</b>. Notice it's about half the flop number —
+          each round that passes without hitting roughly halves your chance.`,
+      };
+    },
+  },
+  {
     id: 'pot-odds',
     title: 'Pot Odds',
     concept: `<b>Pot odds</b> tell you the price of a call. If the pot is $100 and you must call $50,
@@ -1827,13 +1858,17 @@ function buildGameContext(g, extra = {}) {
     yourStack: g.playerChips, oppStack: g.aiChips,
     position,
     blinds: `${SMALL_BLIND}/${BIG_BLIND}`,
-    // The anti-hallucination payload: authoritative engine numbers.
+    // The anti-hallucination payload: authoritative engine numbers, including the
+    // per-street Rule of 2 & 4 breakdown so the coach can explain how the odds
+    // change card to card with exact figures.
     engine: advice ? {
       equityPct: Math.round(advice.equity),
       potOddsPct: Math.round(advice.potOddsPct),
       outs: advice.outs ? advice.outs.outs : 0,
       draws: advice.outs ? advice.outs.draws : [],
+      pctNextCard: advice.outs ? advice.outs.pctTurn : 0,
       pctByRiver: advice.outs ? advice.outs.pctRiver : 0,
+      cardsToCome: advice.calc ? advice.calc.cardsToCome : 0,
       villainRange: advice.range ? advice.range.label : null,
       recommendation: advice.recommend,
       rationale: advice.rationale,
@@ -1863,10 +1898,23 @@ function contextToText(ctx) {
       `ENGINE (authoritative — do NOT recompute):`,
       `  win equity: ${e.equityPct}%`,
       `  pot odds: ${e.potOddsPct}%`,
-      `  outs: ${e.outs}${e.draws.length ? ' (' + e.draws.join(', ') + ')' : ''}; ~${e.pctByRiver}% by river`,
       `  opponent's likely range: ${e.villainRange || 'unknown'}`,
       `  engine recommendation: ${e.recommendation} — ${e.rationale}`,
     );
+    if (e.outs > 0 && e.draws.length) {
+      // Spell out the Rule of 2 & 4 progression so the coach teaches the method,
+      // not just the answer.
+      lines.push(
+        `  DRAW & OUTS (use the Rule of 2 & 4 to explain):`,
+        `    drawing to: ${e.draws.join(' + ')}`,
+        `    outs: ${e.outs} unseen cards complete it`,
+        `    cards still to come: ${e.cardsToCome}`,
+        `    Rule of 2 & 4 — outs × cards-to-come-multiplier:`,
+        `      next card only: ${e.outs} × 2 = ~${e.pctNextCard}%`,
+        `      by the river:   ${e.outs} × ${e.cardsToCome >= 2 ? 4 : 2} = ~${e.pctByRiver}%`,
+        `    (each round that passes without hitting roughly halves the remaining chance)`,
+      );
+    }
   }
   if (ctx.actionLog && ctx.actionLog.length) lines.push(`Action so far: ${ctx.actionLog.join('; ')}`);
   if (ctx.showdown) {
@@ -1884,6 +1932,7 @@ const COACH_SYSTEM_PROMPT =
   `You are a friendly, concise Texas Hold'em poker coach helping a learner improve.\n` +
   `RULES:\n` +
   `- The ENGINE numbers provided are authoritative. NEVER recompute equity, outs, or pot odds; explain and use the given values.\n` +
+  `- When the learner asks how the odds work or how they change, TEACH THE RULE OF 2 & 4: count outs, then multiply by the number of cards still to come (×4 with two cards on the flop, ×2 with one card on the turn) to estimate the win %. Use the DRAW & OUTS breakdown in the context for the exact figures, and explain that each round that passes without hitting roughly halves the remaining chance.\n` +
   `- Teach the "why": connect the cards, the math, and the concept (pot odds, outs, position, ranges).\n` +
   `- Be brief (2-4 sentences unless asked for more). Encouraging, never condescending.\n` +
   `- Adapt to the player's level. If they have recurring leaks, gently reinforce the fix.\n` +
@@ -2360,15 +2409,34 @@ function oddsExplainerHTML(a) {
     ).join('');
     const handEstimate = Math.min(100, outs.outs * multiplier);
 
+    const n = outs.outs;
+    // Per-street progression: the SAME outs give different odds depending on how
+    // many cards are still to come. This is the "outs × rounds left" idea.
+    const flopRiver = Math.min(100, n * 4);   // 2 cards to come
+    const oneCard   = Math.min(100, n * 2);   // 1 card to come
+    const onFlop = c.cardsToCome >= 2;
+    const progressionRows = `
+      <tr class="${onFlop ? 'now' : ''}">
+        <td>On the <b>flop</b> (2 cards to come)</td>
+        <td><span class="odds-math">${n} × 4 = ~${flopRiver}%</span></td>
+        <td>to hit by the river</td>
+      </tr>
+      <tr class="${!onFlop ? 'now' : ''}">
+        <td>On the <b>turn</b> (1 card to come)</td>
+        <td><span class="odds-math">${n} × 2 = ~${oneCard}%</span></td>
+        <td>to hit on the river</td>
+      </tr>`;
+
     steps = `
       <ol class="odds-steps">
         <li><b>Spot your draw.</b> You're drawing to a <b>${outs.draws.join(' + ')}</b>.</li>
-        <li><b>Count your outs</b> — the unseen cards that complete it. Here there are <b>${outs.outs}</b>:
+        <li><b>Count your outs</b> — the unseen cards that complete it. Here there are <b>${n}</b>:
             <div class="out-cards">${outChips}</div></li>
-        <li><b>Rule of 2 &amp; 4</b> (the shortcut pros use in their head): multiply outs by
-            <b>${multiplier}</b> for ${cardsWord}.<br>
-            <span class="odds-math">${outs.outs} outs × ${multiplier} = <b>~${handEstimate}%</b></span>
-            chance to <b>hit your draw</b> by the river.</li>
+        <li><b>Rule of 2 &amp; 4</b> (the shortcut pros use in their head): multiply your outs by the number of
+            <b>rounds of cards you've yet to see</b> — ×<b>4</b> with two cards (flop→river), ×<b>2</b> with one.
+            <table class="odds-progression">${progressionRows}</table>
+            <span class="odds-note">Same ${n} outs — but each round that passes without hitting roughly
+            <b>halves</b> your remaining chance. Right now: <b>~${handEstimate}%</b>.</span></li>
         <li><b>That's your draw's odds.</b> The engine's <b>~${Math.round(a.equity)}%</b> is your <em>total</em>
             win chance — usually a bit higher, because you can also win when your draw misses (e.g. your
             ace or king pairs). Your ~${handEstimate}% is the part you can compute by hand, and it's what
@@ -2444,6 +2512,14 @@ function renderAdvisor() {
     html += `<div class="coach coach-${game.coach.verdict}">${icon} ${game.coach.text}${badge}${thinking}</div>`;
   }
 
+  // "Study mode": even when it's NOT your decision (AI thinking, or just after you
+  // acted), show a read-only odds breakdown for any in-progress post-flop spot, so
+  // you can watch how the odds evolve street to street.
+  const studyable = adviceVisible
+    && game.playerHole.length === 2
+    && game.community.length >= 3 && game.community.length < 5
+    && ['flop', 'turn', 'river'].includes(game.street);
+
   if (live) {
     const a = getAdvice(game);
     if (a) {
@@ -2464,6 +2540,22 @@ function renderAdvisor() {
           <div class="advice-head">🃏 ${a.handName} &nbsp;·&nbsp; Win ~${a.equity.toFixed(0)}% &nbsp;·&nbsp; ${oddsText}${rangeText}</div>
           <div class="advice-rec"><strong>Suggested: ${a.recommend}</strong></div>
           <div class="advice-why">${a.rationale}</div>
+          ${outsHTML}
+          ${oddsExplainerHTML(a)}
+        </div>`;
+    }
+  } else if (studyable) {
+    const a = getAdvice(game);
+    if (a) {
+      let outsHTML = '';
+      if (a.outs && a.outs.outs > 0 && a.outs.draws.length) {
+        const drawText = a.outs.draws.join(' + ');
+        outsHTML = `<div class="advice-outs">🎯 ${a.outs.outs} outs (${drawText}) — rule of 2 &amp; 4: ~${a.outs.pctTurn}% next card, ~${a.outs.pctRiver}% by the river.</div>`;
+      }
+      html += `
+        <div class="advice advice-study">
+          <div class="advice-head">📊 Studying the odds &nbsp;·&nbsp; 🃏 ${a.handName} &nbsp;·&nbsp; Win ~${a.equity.toFixed(0)}%</div>
+          <div class="advice-why">Watch how this moves as each card comes. Expand below to see the maths.</div>
           ${outsHTML}
           ${oddsExplainerHTML(a)}
         </div>`;

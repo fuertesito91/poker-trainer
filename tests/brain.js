@@ -79,6 +79,25 @@ function eq(a, b, m) { if (a !== b) throw new Error(`${m || 'eq'} — got ${JSON
     ok(/win equity:/i.test(t), 'includes equity line');
   });
 
+  await test('context includes the Rule of 2 & 4 progression when there is a draw', () => {
+    // Build a flop spot with a clear flush draw so the outs breakdown is present.
+    run(`
+      globalThis.__draw = (function(){
+        const g = new PokerGame(); g.reset();
+        g.playerHole = ['Ah','Kh'].map(Card.fromString);
+        g.community = ['Qh','7h','2c'].map(Card.fromString);
+        g.street = 'flop'; g.pot = 100; g.currentBet = 25; g.playerBet = 0; g.aiBet = 25;
+        return g;
+      })();
+      globalThis.__drawTxt = contextToText(buildGameContext(__draw));
+    `);
+    const t = sandbox.__drawTxt;
+    ok(/Rule of 2 & 4/i.test(t), 'mentions Rule of 2 & 4');
+    ok(/× 4 =/.test(t), 'shows the ×4 (by river) calculation');
+    ok(/× 2 =/.test(t), 'shows the ×2 (next card) calculation');
+    ok(/cards still to come/i.test(t), 'states cards still to come');
+  });
+
   // ── Brain configured/unconfigured ──
   await test('Brain unconfigured by default; explainDecision falls back to template', async () => {
     run(`BrainConfig.provider = 'none'; BrainConfig.apiKey = '';`);

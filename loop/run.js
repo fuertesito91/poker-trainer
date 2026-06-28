@@ -137,6 +137,16 @@ async function main() {
       log(`applied ${applied}/${planParts} change part(s)` + (failures.length ? ` (rejected: ${failures.join('; ')})` : ''));
       if (applied === 0) { restoreEditable(snap); iterationLog.push({ i, title: plan.title, kept: false, reason: 'nothing applied', failures }); continue; }
 
+      // 3a. SYNTAX GATE: validate the generated code BEFORE wasting time on the
+      // test suite, render, and the (expensive) vision evaluator.
+      const syntax = builder.validateSyntax();
+      if (!syntax.ok) {
+        log(`SYNTAX FAIL -> revert: ${syntax.errors.join(' | ')}`);
+        restoreEditable(snap);
+        iterationLog.push({ i, title: plan.title, kept: false, reason: 'syntax error: ' + syntax.errors.join('; ') });
+        continue;
+      }
+
       // 4. GATE: tests + render.
       const green = await runTests();
       if (!green) {

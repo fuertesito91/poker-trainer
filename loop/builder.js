@@ -6,6 +6,7 @@
    ===================================================== */
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const cfg = require('./config');
 const { call, textBlock, imageBlock, parseJSON } = require('./llm');
 
@@ -46,6 +47,8 @@ OPTION B — "edits" (for restyling or restructuring EXISTING elements — felt,
 - Edits are applied ATOMICALLY: if ANY edit fails to match, the WHOLE change is rejected and nothing is applied — so copy each "find" carefully.
 
 You may include "feature" and/or "edits". Use "feature" to add a NEW teaching visual; use "edits" to transform existing UI or the theme. Combine them for a cohesive redesign.
+
+CRITICAL — VALID JSON: your entire reply must be ONE valid JSON object and nothing else. All code in "js", "css", and "replace" lives inside JSON strings, so you MUST escape it: every double-quote becomes \\" and every newline becomes \\n. Never put a raw line break inside a string value. If a CSS edit is getting hard to escape, prefer single-line CSS. Tip: theme/:root and CSS-only edits are the easiest to keep valid; the "feature.css"/"feature.js" fields are also strings and need the same escaping. Double-check your JSON before responding — malformed JSON wastes the whole turn.
 
 GREAT high-impact ideas (pick something genuinely different each turn):
 - A bold new COLOR SYSTEM / theme via :root (e.g. a deep emerald-and-brass casino palette, or a sleek modern neon-on-charcoal study aesthetic) applied across buttons, panels, accents.
@@ -113,7 +116,21 @@ async function propose({ shotDir, history }) {
     `Now propose ONE BOLD, AMBITIOUS change — a cohesive redesign of a whole component/screen, a brand-new teaching visual, or an app-wide theme via :root — judged against a world-class poker trainer. Use multiple coordinated edits if needed. NOT a timid one-property tweak. Output JSON only; every "find" must be an exact unique substring of the named file.`));
 
   const reply = await call(BUILDER_SYSTEM, content);
-  const plan = parseJSON(reply);
+  let plan;
+  try {
+    plan = parseJSON(reply);
+  } catch (e) {
+    // The model's JSON was malformed (common when code blobs aren't escaped).
+    // Ask it once to re-emit STRICTLY VALID JSON — usually fixes escaping issues.
+    const fix = await call(
+      'You output ONLY a single valid JSON object. No prose, no code fences.',
+      [textBlock(
+        `Your previous response could not be parsed as JSON (${e.message}). ` +
+        `Re-output the SAME plan as ONE strictly valid JSON object. ` +
+        `Critically: any code in "js"/"css"/"replace" must be a valid JSON string — escape every double-quote as \\" and every newline as \\n; do not include raw line breaks inside string values.\n\n` +
+        `Your previous (invalid) response was:\n${reply}`)]);
+    plan = parseJSON(fix);
+  }
   const hasFeature = plan.feature && (plan.feature.js || plan.feature.css);
   const hasEdits = Array.isArray(plan.edits) && plan.edits.length;
   if (!hasFeature && !hasEdits) throw new Error('builder returned neither a feature nor edits');
@@ -200,4 +217,30 @@ function applyEdits(plan) {
   return { applied, failures };
 }
 
-module.exports = { propose, applyEdits, applyFeature, readFiles };
+// Validate the working copy's syntax BEFORE the (expensive) evaluator runs:
+//  - app.js must parse as JavaScript
+//  - style.css must have balanced braces (cheap sanity check that catches the
+//    common "dangling rule" breakage from a bad edit)
+// Returns { ok, errors[] }.
+function validateSyntax() {
+  const errors = [];
+  // JS: compile (don't execute) the app script.
+  try {
+    const js = fs.readFileSync(path.join(cfg.workDir, 'app.js'), 'utf8');
+    new vm.Script(js, { filename: 'app.js' });
+  } catch (e) {
+    errors.push('app.js: ' + e.message);
+  }
+  // CSS: brace balance + no obviously truncated rule.
+  try {
+    const css = fs.readFileSync(path.join(cfg.workDir, 'style.css'), 'utf8');
+    const opens = (css.match(/{/g) || []).length;
+    const closes = (css.match(/}/g) || []).length;
+    if (opens !== closes) errors.push(`style.css: unbalanced braces (${opens} '{' vs ${closes} '}')`);
+  } catch (e) {
+    errors.push('style.css: ' + e.message);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+module.exports = { propose, applyEdits, applyFeature, readFiles, validateSyntax };

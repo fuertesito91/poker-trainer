@@ -1,0 +1,12 @@
+# OS / editor
+.DS_Store
+
+# Local screenshots / scratch test pages
+*.png
+.*-test.html
+.flop-*.html
+.show-test.html
+.index-min.html
+
+# Node
+node_modules/

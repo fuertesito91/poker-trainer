@@ -32,7 +32,7 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   padding: 16px;
 }
 
@@ -169,6 +169,21 @@ body {
 }
 
 .card-back span { opacity: 0.5; }
+
+/* Highlight the 5 cards that make the winning hand at showdown. */
+.card-winning {
+  box-shadow: 0 0 0 3px var(--accent-gold), 0 0 16px rgba(255,215,0,0.7);
+  transform: translateY(-4px);
+  position: relative;
+  z-index: 2;
+  animation: winning-pop 0.4s ease;
+}
+
+@keyframes winning-pop {
+  0%   { transform: translateY(0) scale(1); }
+  60%  { transform: translateY(-7px) scale(1.06); }
+  100% { transform: translateY(-4px) scale(1); }
+}
 
 .card-placeholder {
   background: rgba(255,255,255,0.06);
@@ -333,6 +348,13 @@ body {
 .advice-head { opacity: 0.9; font-size: 0.8rem; }
 .advice-rec  { margin: 3px 0; font-size: 0.95rem; }
 .advice-why  { opacity: 0.75; font-size: 0.78rem; }
+.advice-outs {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255,255,255,0.15);
+  font-size: 0.78rem;
+  color: #ffd98a;
+}
 
 .advice-green  { border-left-color: var(--btn-success); }
 .advice-yellow { border-left-color: var(--btn-warning); }
@@ -517,3 +539,572 @@ body.dark-theme .table {
   .controls-row { gap: 4px; }
   #raise-slider { width: 70px; }
 }
+/* ─── Learn button & Lessons overlay ──────────────────── */
+.btn-learn {
+  background: var(--accent-gold);
+  color: #2c2c2c;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-learn:active { transform: scale(0.96); }
+
+.lesson-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+.lesson-overlay[hidden] { display: none; }
+
+.lesson-modal {
+  background: #20203a;
+  color: var(--text-light);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  border-radius: 14px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.lesson-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.lesson-progress { font-size: 0.7rem; font-weight: 400; opacity: 0.65; }
+.lesson-close {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 1.1rem;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 4px 8px;
+}
+.lesson-close:hover { opacity: 1; }
+
+.lesson-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+}
+
+.lesson-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.lesson-pill {
+  font-size: 0.68rem;
+  padding: 4px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-light);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lesson-pill.active { background: var(--btn-primary); border-color: var(--btn-primary); }
+.lesson-pill.done { border-color: var(--btn-success); color: #9fe9bd; }
+.lesson-pill.locked { opacity: 0.4; cursor: not-allowed; }
+
+.lesson-concept {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  background: rgba(0,0,0,0.25);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border-left: 3px solid var(--accent-gold);
+}
+.lesson-concept b { color: var(--accent-gold); }
+.lesson-list { margin: 6px 0 0 18px; line-height: 1.7; }
+
+.lesson-drill-wrap { margin-top: 14px; }
+.lesson-drill-btn { width: 100%; margin-top: 10px; }
+
+.drill {
+  background: rgba(0,0,0,0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.drill-prompt { font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px; }
+.drill-cards { margin: 4px 0; font-size: 1.05rem; }
+.drill-name { font-size: 0.75rem; opacity: 0.65; }
+.drill-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.drill-opt {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: var(--text-light);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.drill-opt:hover:not(:disabled) { background: rgba(255,255,255,0.14); }
+.drill-opt.correct { background: var(--btn-success); border-color: var(--btn-success); color: white; }
+.drill-opt.wrong { background: var(--btn-danger); border-color: var(--btn-danger); color: white; }
+
+.drill-result {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.drill-result.ok { background: rgba(45,159,94,0.2); border-left: 3px solid var(--btn-success); }
+.drill-result.no { background: rgba(192,57,43,0.2); border-left: 3px solid var(--btn-danger); }
+.drill-result b { color: var(--accent-gold); }
+
+.lesson-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.lesson-hint { font-size: 0.7rem; opacity: 0.6; text-align: center; flex: 1; }
+
+@media (max-width: 480px) {
+  .lesson-pill { font-size: 0.62rem; padding: 3px 6px; }
+  .lesson-concept { font-size: 0.82rem; }
+}
+
+/* ─── Analysis & Leaks panel ──────────────────────────── */
+.analysis-wrap {
+  margin: 8px 4px 0;
+  background: rgba(0,0,0,0.22);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+}
+.leaks-list { margin-top: 8px; }
+.leaks-list[style*="display: none"] { display: none; }
+
+.street-stats { margin-bottom: 10px; }
+.street-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  margin-bottom: 4px;
+}
+.street-name { width: 56px; text-transform: capitalize; opacity: 0.8; }
+.street-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.street-fill { display: block; height: 100%; border-radius: 4px; }
+.street-fill.good { background: var(--btn-success); }
+.street-fill.mid  { background: var(--btn-warning); }
+.street-fill.low  { background: var(--btn-danger); }
+.street-pct { width: 64px; text-align: right; }
+.street-pct small { opacity: 0.5; }
+
+.leaks-title { font-size: 0.78rem; font-weight: 700; margin: 6px 0; color: #f0c674; }
+.leak {
+  background: rgba(0,0,0,0.28);
+  border-left: 3px solid var(--btn-warning);
+  border-radius: 0 8px 8px 0;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+}
+.leak-head { font-size: 0.78rem; }
+.leak-count { opacity: 0.6; font-size: 0.7rem; }
+.leak-tip { font-size: 0.72rem; opacity: 0.8; line-height: 1.4; margin-top: 2px; }
+.leaks-clean { font-size: 0.75rem; opacity: 0.7; padding: 4px 0; }
+
+/* ─── Lesson/Scenario tabs ────────────────────────────── */
+.lesson-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.lesson-tab {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-light);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lesson-tab.active { background: var(--btn-primary); border-color: var(--btn-primary); }
+
+/* ─── Scenarios ───────────────────────────────────────── */
+.scenario { }
+.scenario-teach {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: rgba(0,0,0,0.25);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border-left: 3px solid var(--accent-gold);
+  margin-bottom: 12px;
+}
+.scenario-cards { margin-bottom: 10px; }
+.scenario-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.scenario-row .card { width: 44px; height: 62px; font-size: 1rem; }
+.scenario-row .card .card-rank { font-size: 0.78rem; }
+.scenario-row .card .card-suit { font-size: 0.9rem; }
+.scenario-lbl {
+  width: 70px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  opacity: 0.65;
+  letter-spacing: 0.5px;
+}
+.scenario-context { font-size: 0.85rem; margin-bottom: 12px; opacity: 0.9; }
+.scenario-context b { color: var(--accent-gold); }
+.scenario-why { margin-top: 6px; font-size: 0.78rem; opacity: 0.85; }
+
+/* ─── Replay button ───────────────────────────────────── */
+.hist-replay {
+  margin-top: 8px;
+  background: rgba(45,106,159,0.25);
+  border: 1px solid var(--btn-primary);
+  color: var(--text-light);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.hist-replay:hover { background: rgba(45,106,159,0.45); }
+
+/* ─── AI Coach: header buttons & badges ──────────────── */
+.btn-coach {
+  background: #6c4cff;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-coach:active { transform: scale(0.96); }
+#btn-settings {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text-light);
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.coach-badge {
+  font-size: 0.6rem;
+  background: #6c4cff;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 8px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.coach-thinking { font-size: 0.7rem; opacity: 0.6; font-style: italic; }
+
+/* ─── Shell: table + docked coach side-by-side ───────── */
+.shell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+}
+.shell .app { margin: 0; }
+
+/* ─── AI Coach DOCK (persistent right-side panel) ─────── */
+.coach-dock {
+  flex: 0 0 360px;
+  width: 360px;
+  align-self: stretch;
+  position: sticky;
+  top: 16px;
+  height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: #20203a;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.coach-dock[hidden] { display: none; }
+
+.coach-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.coach-dock-actions { display: flex; gap: 4px; }
+.coach-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.coach-icon-btn:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+
+/* Floating launcher shown when the dock is minimised. */
+.coach-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: #6c4cff;
+  color: white;
+  font-size: 1.4rem;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(108,76,255,0.5);
+  z-index: 90;
+}
+.coach-launcher[hidden] { display: none; }
+.coach-launcher:active { transform: scale(0.94); }
+
+.coach-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.coach-msg {
+  max-width: 85%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.coach-msg-user {
+  align-self: flex-end;
+  background: var(--btn-primary);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.coach-msg-assistant {
+  align-self: flex-start;
+  background: rgba(255,255,255,0.08);
+  border-bottom-left-radius: 4px;
+}
+.coach-msg-system {
+  align-self: center;
+  background: rgba(0,0,0,0.3);
+  font-size: 0.8rem;
+  opacity: 0.85;
+  text-align: center;
+  max-width: 100%;
+}
+.coach-msg-error { align-self: center; background: rgba(192,57,43,0.25); color: #ef8a80; max-width: 100%; }
+.coach-typing { opacity: 0.5; letter-spacing: 2px; animation: pulse 1.2s infinite; }
+
+.coach-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.coach-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: var(--text-light);
+  font-size: 0.86rem;
+}
+.coach-input:disabled { opacity: 0.5; }
+
+/* ─── Settings ───────────────────────────────────────── */
+.settings-field { margin-bottom: 14px; }
+.settings-field label {
+  display: block;
+  font-size: 0.78rem;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+.settings-field select,
+.settings-field input {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+.settings-warn {
+  font-size: 0.7rem;
+  color: #f0c674;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.settings-actions { display: flex; gap: 8px; margin-top: 6px; }
+.settings-actions .btn { flex: 1; }
+.settings-status { margin-top: 10px; font-size: 0.8rem; min-height: 1.2em; }
+.settings-status.ok { color: #7fe0a0; }
+.settings-status.err { color: #ef8a80; }
+
+/* ─── Responsive: dock collapses to a slide-over ──────── */
+@media (max-width: 1100px) {
+  .shell { display: block; max-width: 900px; }
+  .coach-dock {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    height: 100vh;
+    width: min(380px, 92vw);
+    flex: none;
+    border-radius: 0;
+    z-index: 95;
+    transform: translateX(0);
+    transition: transform 0.22s ease;
+  }
+  body.coach-collapsed .coach-dock { transform: translateX(100%); }
+  /* On mobile the launcher is the primary way back in. */
+}
+
+@media (max-width: 640px) {
+  .coach-dock { width: 100vw; }
+}
+
+/* ─── Showdown breakdown (labeled winning combo) ─────── */
+.sd-banner {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  margin-bottom: 10px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.sd-pot { font-size: 0.85rem; font-weight: 600; opacity: 0.85; margin-left: 6px; }
+
+.sd-row {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: rgba(0,0,0,0.25);
+  border-left: 3px solid transparent;
+}
+.sd-row.sd-winner { border-left-color: var(--btn-success); background: rgba(45,159,94,0.14); }
+.sd-row.sd-loser  { border-left-color: rgba(255,255,255,0.12); opacity: 0.82; }
+
+.sd-row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.sd-who { font-weight: 700; font-size: 0.9rem; }
+.sd-tag-win {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: var(--btn-success);
+  color: white;
+  padding: 1px 7px;
+  border-radius: 8px;
+}
+.sd-combo-name { font-size: 0.92rem; font-weight: 700; }
+.sd-combo-detail { font-weight: 400; opacity: 0.85; font-size: 0.82rem; }
+
+.sd-cards { display: flex; gap: 5px; margin: 7px 0 4px; flex-wrap: wrap; }
+.sd-card {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1.5px solid;
+  background: var(--card-bg);
+}
+/* Cards from the player's hand get a solid border + lift; board cards are flatter. */
+.sd-card-hole { box-shadow: 0 0 0 2px var(--accent-gold); }
+.sd-card-board { opacity: 0.92; }
+
+.sd-source { font-size: 0.72rem; opacity: 0.7; font-style: italic; }
+
+.sd-legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 8px;
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+.sd-key {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-right: 4px;
+  background: var(--card-bg);
+  border: 1.5px solid #999;
+}
+.sd-key-hole { box-shadow: 0 0 0 2px var(--accent-gold); }
+
+/* ─── Odds explainer (how the live numbers are computed) */
+.odds-explainer {
+  margin-top: 8px;
+  border-top: 1px dashed rgba(255,255,255,0.15);
+  padding-top: 6px;
+}
+.odds-explainer summary {
+  cursor: pointer;
+  font-size: 0.76rem;
+  opacity: 0.8;
+  list-style: none;
+  user-select: none;
+}
+.odds-explainer summary::-webkit-details-marker { display: none; }
+.odds-explainer summary:hover { opacity: 1; }
+.odds-explainer-body {
+  margin-top: 6px;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  opacity: 0.9;
+}
+.odds-explainer-body p { margin: 0 0 6px; }
+.odds-explainer-body b { color: var(--accent-gold); }

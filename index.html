@@ -10,12 +10,15 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+ <body>
+  <div class="shell">
   <div class="app">
     <!-- Header -->
     <div class="header">
       <h1>♠️ <span>Poker</span> Trainer</h1>
       <div class="header-controls">
+        <button id="btn-learn" class="btn-learn" aria-label="Open lessons">🎓 Learn</button>
+        <button id="btn-coach" class="btn-coach" aria-label="Ask the AI coach">💬 Coach</button>
         <label class="difficulty-label">
           AI:
           <select id="difficulty" aria-label="AI difficulty">
@@ -24,6 +27,7 @@
             <option value="hard">Hard</option>
           </select>
         </label>
+        <button id="btn-settings" aria-label="AI settings">⚙️</button>
         <button id="theme-toggle" aria-label="Toggle theme">🌓</button>
       </div>
     </div>
@@ -101,11 +105,60 @@
         <button id="btn-reset-stats" class="stats-reset" aria-label="Reset stats">Reset stats</button>
       </div>
 
+      <!-- Per-street accuracy & leaks -->
+      <details class="analysis-wrap">
+        <summary class="history-toggle">📊 Analysis &amp; Leaks</summary>
+        <div id="leaks-area" class="leaks-list"></div>
+      </details>
+
       <!-- Hand History -->
       <details class="history-wrap">
         <summary class="history-toggle">📜 Hand History</summary>
         <div id="history-area" class="history-list"></div>
       </details>
+    </div>
+  </div>
+
+  <!-- AI Coach dock (persistent side panel; collapses to a launcher) -->
+  <aside id="coach-dock" class="coach-dock" aria-label="AI poker coach">
+    <div class="coach-dock-head">
+      <span id="coach-title">💬 AI Coach</span>
+      <div class="coach-dock-actions">
+        <button id="coach-reset" class="coach-icon-btn" aria-label="Clear chat" title="Clear chat">🗑️</button>
+        <button id="coach-min" class="coach-icon-btn" aria-label="Minimise coach" title="Minimise">▸</button>
+      </div>
+    </div>
+    <div id="coach-messages" class="coach-messages"></div>
+    <div class="coach-input-row">
+      <input id="coach-input" class="coach-input" type="text" placeholder="Ask the coach…" autocomplete="off">
+      <button id="coach-send" class="btn btn-primary">Send</button>
+    </div>
+  </aside>
+  </div><!-- /.shell -->
+
+  <!-- Floating launcher shown when the dock is minimised -->
+  <button id="coach-launcher" class="coach-launcher" aria-label="Open AI coach" hidden>💬</button>
+
+  <!-- Lessons / Curriculum overlay -->
+  <div id="lesson-overlay" class="lesson-overlay" role="dialog" aria-modal="true" aria-label="Poker lessons" hidden>
+    <div class="lesson-modal">
+      <div class="lesson-modal-head">
+        <span id="lesson-title">Learn Poker</span>
+        <button id="lesson-close" class="lesson-close" aria-label="Close lessons">✕</button>
+      </div>
+      <div id="lesson-body" class="lesson-body"></div>
+      <div id="lesson-foot" class="lesson-foot"></div>
+    </div>
+  </div>
+
+  <!-- AI Coach settings -->
+  <div id="settings-overlay" class="lesson-overlay" role="dialog" aria-modal="true" aria-label="AI coach settings" hidden>
+    <div class="lesson-modal">
+      <div class="lesson-modal-head">
+        <span>⚙️ AI Coach Settings</span>
+        <button id="settings-close" class="lesson-close" aria-label="Close settings">✕</button>
+      </div>
+      <div id="settings-body" class="lesson-body"></div>
     </div>
   </div>
 

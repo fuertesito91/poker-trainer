@@ -1,0 +1,9 @@
+{
+  "name": "poker-trainer",
+  "version": "1.0.0",
+  "description": "Offline Texas Hold'em poker trainer with a built-in learning curriculum.",
+  "scripts": {
+    "test": "node tests/run.js && node tests/brain.js && node tests/smoke.js"
+  },
+  "license": "MIT"
+}

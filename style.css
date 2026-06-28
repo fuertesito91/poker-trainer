@@ -286,7 +286,7 @@ body {
 .btn:active { transform: scale(0.96); }
 .btn:disabled { opacity: 0.35; cursor: default; transform: none; }
 
-.btn-primary  { background: var(--btn-primary); color: white; }
+.btn-primary  { background: var(--btn-primary); color: white; font-size: 0.95rem; padding: 12px 24px; }
 .btn-success  { background: var(--btn-success); color: white; }
 .btn-danger   { background: var(--btn-danger);  color: white; }
 .btn-warning  { background: var(--btn-warning); color: white; }
@@ -386,8 +386,8 @@ body {
   align-items: center;
 }
 
-.info-label { opacity: 0.6; }
-.info-value { font-weight: 700; }
+.info-label { opacity: 0.75; font-weight: 600; }
+.info-value { font-weight: 700; color: var(--accent-gold); }
 
 #hint-area {
   display: none;

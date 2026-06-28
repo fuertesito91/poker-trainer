@@ -2606,7 +2606,7 @@ let oddsExplainerOpen = false;
 //   a.calc {winPct, tiePct, losePct, cardsToCome, call, potBeforeCall}
 function advisorExtrasHTML(a) {
   /* EXTRAS:START */
-  return '';
+  if(a.needed<=0)return'';const eq=Math.round(a.equity);const po=Math.round(a.potOddsPct);const profitable=eq>=po;const margin=eq-po;const barColor=profitable?(margin>=15?'#2d9f5e':margin>=5?'#5fad70':'#8bb884'):(margin>=-5?'#d68910':margin>=-15?'#c76e2a':'#c0392b');const poLineLeft=Math.min(po,100);const eqWidth=Math.min(eq,100);return`<div class="potodds-gauge"><div class="gauge-labels"><span class="gauge-label-left">Pot Odds: <b>${po}%</b> to break even</span><span class="gauge-label-right">Your Equity: <b>${eq}%</b></span></div><div class="gauge-track"><div class="gauge-breakeven-line" style="left:${poLineLeft}%"></div><div class="gauge-equity-fill" style="width:${eqWidth}%;background:${barColor}"></div><div class="gauge-marker" style="left:${poLineLeft}%" title="Break-even point"></div></div><div class="gauge-verdict">${profitable?'✅ Calling is <b>profitable</b> — you win more often than the pot demands':'❌ Calling is <b>unprofitable</b> — you need '+po+'% equity but only have '+eq+'%'}</div></div>`;
   /* EXTRAS:END */
 }
 

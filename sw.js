@@ -3,7 +3,7 @@
    Caches all assets for offline use.
    ===================================================== */
 
-const CACHE_NAME = 'poker-trainer-v8';
+const CACHE_NAME = 'poker-trainer-v9';
 const ASSETS = [
   './',
   './index.html',

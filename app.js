@@ -2127,9 +2127,55 @@ function renderTable() {
   document.getElementById('ai-chips').textContent = `$${game.aiChips}`;
   document.getElementById('pot-display').textContent = `Pot: $${game.pot}`;
 
+  // Per-player bet indicators: how much each has committed THIS round, plus the
+  // action that produced it (bet / raise to / call / check). Cleared between
+  // hands and when a betting round resets (bets return to 0).
+  renderBetBadge('player', game.playerBet);
+  renderBetBadge('ai', game.aiBet);
+
   // Dealer button
   document.getElementById('dealer-indicator').textContent =
     game.button === 0 ? 'You are dealer' : 'AI is dealer';
+}
+
+// Show a chip badge with the amount a player has in front of them this round and
+// a short label for their latest action on the current street.
+function renderBetBadge(who, betAmount) {
+  const el = document.getElementById(`${who}-bet`);
+  if (!el) return;
+
+  const live = game.street === 'preflop' || game.street === 'flop'
+            || game.street === 'turn' || game.street === 'river';
+
+  if (!live) { el.hidden = true; return; }
+
+  // Most recent action by this player on the current street.
+  let actionText = '';
+  for (let i = game.actionLog.length - 1; i >= 0; i--) {
+    const a = game.actionLog[i];
+    if (a.who === who && a.street === game.street) { actionText = a.text; break; }
+  }
+
+  // Derive a short verb from the logged action ("raise to $50" -> "raised",
+  // "bet $10" -> "bet", "call $40" -> "called"). The amount is shown by the chip.
+  let verb = '';
+  if (/^raise/.test(actionText)) verb = 'raised';
+  else if (/^bet/.test(actionText)) verb = 'bet';
+  else if (/^call/.test(actionText)) verb = 'called';
+  else if (actionText === 'check') verb = 'checked';
+
+  // Show a badge when there's chips committed or a meaningful action to report.
+  if (betAmount > 0) {
+    el.hidden = false;
+    el.className = 'player-bet has-bet';
+    el.innerHTML = `🪙 $${betAmount}${verb ? ` <span class="bet-action">${verb}</span>` : ''}`;
+  } else if (verb === 'checked') {
+    el.hidden = false;
+    el.className = 'player-bet';
+    el.innerHTML = `<span class="bet-action">checked</span>`;
+  } else {
+    el.hidden = true;
+  }
 }
 
 function renderControls() {
@@ -2164,6 +2210,9 @@ function renderControls() {
   const maxRaiseTotal = game.playerChips + game.playerBet;
   const defaultRaiseTotal = Math.min(minRaiseTotal + BIG_BLIND * 3, maxRaiseTotal);
 
+  // The action is a "bet" when nobody has bet yet this round, else a "raise".
+  const raiseVerb = game.currentBet === 0 ? 'Bet' : 'Raise to';
+
   container.innerHTML = `
     <div class="controls-row">
       <button id="btn-fold" class="btn btn-danger">Fold</button>
@@ -2171,12 +2220,11 @@ function renderControls() {
         ${canCheck ? 'Check ✓' : 'Check'}
       </button>
       <button id="btn-call" class="btn btn-success">
-        Call ${needed > 0 ? '$'+needed : ''}
+        ${needed > 0 ? `Call $${needed}` : 'Call'}
       </button>
       <div class="raise-group">
         <input type="range" id="raise-slider" min="${minRaiseTotal}" max="${maxRaiseTotal}" value="${defaultRaiseTotal}" step="5">
-        <span id="raise-amount">$${defaultRaiseTotal}</span>
-        <button id="btn-raise" class="btn btn-warning">Raise to</button>
+        <button id="btn-raise" class="btn btn-warning">${raiseVerb} <span id="raise-amount">$${defaultRaiseTotal}</span></button>
       </div>
     </div>
     <button id="btn-advice" class="btn btn-info">${adviceVisible ? '🙈 Hide Live Advice' : '💡 Show Live Advice'}</button>

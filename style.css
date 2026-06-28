@@ -123,11 +123,42 @@ body {
   min-width: 40px;
 }
 
+.player-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  min-width: 76px;
+}
+
 .player-chips {
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--accent-gold);
   white-space: nowrap;
+}
+
+/* Per-player bet indicator (chips committed this round + last action). */
+.player-bet {
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.35);
+  color: var(--text-light);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.player-bet[hidden] { display: none; }
+.player-bet.has-bet {
+  background: rgba(214,137,16,0.22);
+  border-color: var(--btn-warning);
+  color: #ffd98a;
+}
+.player-bet .bet-action {
+  opacity: 0.85;
+  font-weight: 600;
+  text-transform: capitalize;
 }
 
 .cards-row {

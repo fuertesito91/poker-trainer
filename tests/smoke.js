@@ -122,6 +122,18 @@ step('buildGameContext + contextToText on live game', `
   const t = contextToText(c);
   if (typeof t !== 'string' || !t.length) throw new Error('empty context text');
 `);
+step('bet badges render across a hand without throwing', `
+  {
+    game.startNewHand({ seed: 21, button: 0 });
+    // renderBetBadge is exercised via renderTable() inside render().
+    let badgeGuard = 0;
+    while (game.street !== 'idle' && game.street !== 'gameover' && game.street !== 'showdown' && badgeGuard++ < 100) {
+      render();
+      if (game.waitingForAction) game.playerAction('call'); else break;
+    }
+    render();
+  }
+`);
 
 console.log(`\n${failed ? failed + ' smoke failures' : 'smoke OK'}`);
 process.exit(failed ? 1 : 0);

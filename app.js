@@ -2594,6 +2594,20 @@ function oddsExplainerHTML(a) {
 }
 let oddsExplainerOpen = false;
 
+// ─── Advisor extension slot ──────────────────────────
+// A safe place to add NEW teaching visuals (equity meters, outs overlays, etc.)
+// without surgery on the advisor's template literals. `advisorExtrasHTML(a)`
+// receives the live advice object `a` (see getAdvice) and returns an HTML string
+// that is injected at the top of each advisor card. Returns '' by default, so it
+// is inert until someone implements it. The fields available on `a`:
+//   a.equity (0-100), a.potOddsPct (0-100), a.needed ($ to call),
+//   a.recommend (string), a.color ('green'|'yellow'|'red'), a.handName,
+//   a.range {label, pct}, a.outs {outs, draws[], outCards[], pctTurn, pctRiver},
+//   a.calc {winPct, tiePct, losePct, cardsToCome, call, potBeforeCall}
+function advisorExtrasHTML(a) {
+  return ''; // EXTENSION POINT — return HTML to add a teaching visual.
+}
+
 function renderAdvisor() {
   const el = document.getElementById('advisor-area');
   if (!el) return;
@@ -2639,6 +2653,7 @@ function renderAdvisor() {
       html += `
         <div class="advice advice-${a.color}">
           <div class="advice-head">🃏 ${a.handName} &nbsp;·&nbsp; Win ~${a.equity.toFixed(0)}% &nbsp;·&nbsp; ${oddsText}${rangeText}</div>
+          ${advisorExtrasHTML(a)}
           <div class="advice-rec"><strong>Suggested: ${a.recommend}</strong></div>
           <div class="advice-why">${a.rationale}</div>
           ${outsHTML}
@@ -2656,6 +2671,7 @@ function renderAdvisor() {
       html += `
         <div class="advice advice-study">
           <div class="advice-head">📊 Studying the odds &nbsp;·&nbsp; 🃏 ${a.handName} &nbsp;·&nbsp; Win ~${a.equity.toFixed(0)}%</div>
+          ${advisorExtrasHTML(a)}
           <div class="advice-why">Watch how this moves as each card comes. Expand below to see the maths.</div>
           ${outsHTML}
           ${oddsExplainerHTML(a)}

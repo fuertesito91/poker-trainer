@@ -30,7 +30,27 @@ HARD RULES:
 - The evaluator only sees STATIC screenshots: do NOT propose changes whose only effect is a hover/focus/active state, transition or animation — they are invisible and always reverted. Everything you do must be visible in the default rendered state.
 - Do NOT make timid, generic tweaks (e.g. nudging one font size or opacity). Those score 0 and get reverted. Be genuinely creative or genuinely improve the teaching.
 - Stay legible and cohesive — bold is good, broken or cluttered is not.
-- Do not repeat a change already applied or already rejected; pick a DIFFERENT area each turn (table felt, cards, chips/bets, the odds explainer, advisor, coach dock, showdown, controls, headings, color system, etc.).`;
+- Do not repeat a change already applied or already rejected; pick a DIFFERENT area each turn (table felt, cards, chips/bets, the odds explainer, advisor, coach dock, showdown, controls, headings, color system, etc.).
+
+ADDING NEW UI (IMPORTANT — this is how you build NEW teaching visuals so they ACTUALLY render):
+A common failure is writing CSS for a new element (e.g. an "equity meter") while never adding the HTML element itself — so nothing appears and it gets reverted. To add NEW visible DOM you MUST do BOTH in the same turn:
+  (1) Generate the element's HTML from JS, AND (2) style it in CSS.
+The app gives you a dedicated, safe injection point for advisor/teaching visuals — the function 'advisorExtrasHTML(a)' in app.js. By default it is:
+    function advisorExtrasHTML(a) {
+      return ''; // EXTENSION POINT — return HTML to add a teaching visual.
+    }
+To add a teaching visual, REPLACE the line  return ''; // EXTENSION POINT — return HTML to add a teaching visual.
+with JS that builds and returns an HTML string using the live data on 'a'. The element is injected at the TOP of the advisor card (which renders whenever the player can act on the flop/turn, and in study mode). Available fields on 'a':
+  a.equity (0-100 number), a.potOddsPct (0-100), a.needed (chips to call),
+  a.recommend (string), a.color ('green'|'yellow'|'red'), a.handName,
+  a.range {label, pct}, a.outs {outs, draws[], outCards[] (each has .display and .color), pctTurn, pctRiver},
+  a.calc {winPct, tiePct, losePct, cardsToCome, call, potBeforeCall}
+Example pattern (you invent the actual design — be creative): replace the EXTENSION POINT line with something like
+  const eq = Math.round(a.equity); return '<div class="equity-meter"><div class="equity-fill" style="width:'+eq+'%"></div><span>'+eq+'% to win</span></div>';
+Then add the matching CSS: in style.css there is exactly one line:
+    /* ===== EXTENSION STYLES (append new component rules above this exact line) ===== */
+REPLACE that entire line with  <your new CSS rules>\n followed by that same exact line (so the anchor is preserved for next time). Use inline style attributes in the JS for any data-driven values (widths, colors) since CSS can't read JS values.
+Rules for new DOM: keep returned HTML self-contained, escape nothing that's already numeric, never reference IDs that don't exist, and make it visible in the default state (no hover-only reveal).`;
 
 function readFiles() {
   const out = {};
@@ -50,13 +70,24 @@ async function propose({ shotDir, history }) {
       history.map((h, i) => `${i + 1}. ${h.title}`).join('\n')
     : 'No improvements applied yet.';
 
-  // Give the model the CSS in full (it's the safest, highest-leverage surface)
-  // and the HTML in full; for app.js, give a trimmed view to control token use.
+  // Give the model the CSS in full (safest, highest-leverage surface) and the
+  // HTML in full. For app.js, include the head (data shapes) PLUS the advisor
+  // render region around the extension point, so the model can always find the
+  // exact strings to target when adding new teaching DOM.
+  const appjs = files['app.js'];
+  const anchor = appjs.indexOf('function advisorExtrasHTML');
+  let appExcerpt = appjs.slice(0, 16000) + '\n…(truncated)…\n';
+  if (anchor !== -1) {
+    // Grab from a bit before the extension stub through renderAdvisor's end.
+    const start = Math.max(0, anchor - 400);
+    const end = Math.min(appjs.length, anchor + 4500);
+    appExcerpt += `\n=== app.js (advisor render + EXTENSION POINT — target these exact strings to add teaching visuals) ===\n` +
+      appjs.slice(start, end) + '\n…';
+  }
   const fileText =
     `=== index.html ===\n${files['index.html']}\n\n` +
     `=== style.css ===\n${files['style.css']}\n\n` +
-    `=== app.js (render/UI functions are the safest to touch) ===\n` +
-    files['app.js'].slice(0, 18000) + '\n…(truncated)…';
+    `=== app.js ===\n` + appExcerpt;
 
   const content = [
     textBlock(`${memory}\n\nHere are screenshots of the current UI states:`),
